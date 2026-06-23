@@ -25,7 +25,6 @@
 		const og: CanvasRenderingContext2D = offCtx;
 
 		const PIXEL = 4; // offscreen→screen upscale (ball chunkiness)
-		const GRID = 44; // grid cell size in CSS px (crisp)
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
 		let W = 0; // CSS px (grid space)
 		let H = 0;
@@ -64,6 +63,9 @@
 			main.clearRect(0, 0, W, H); // keep the theme bg behind
 			main.strokeStyle = '#b41eb4';
 			main.lineWidth = 2;
+			// Cell size scales with the smaller dimension (clamped) so the grid
+			// density stays balanced at any container size / aspect ratio.
+			const GRID = Math.max(26, Math.min(64, Math.round(Math.min(W, H) / 11)));
 			const hY = Math.round(H * 0.7); // horizon
 			const floorH = H - hY;
 			const vpX = W / 2; // floor vanishing point (on the horizon)
