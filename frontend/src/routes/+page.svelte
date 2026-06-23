@@ -654,8 +654,10 @@
 		flex: 0 0 auto;
 		width: 32px;
 		padding: 4px 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		color: var(--accent);
-		font-family: ui-monospace, monospace;
 	}
 	button.name {
 		flex: 1;
@@ -673,6 +675,9 @@
 	.edit {
 		visibility: hidden;
 		padding: 2px 8px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 	li:hover .edit {
 		visibility: visible;
@@ -766,6 +771,9 @@
 	}
 	.pv-close {
 		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 	/* Reserve a fixed 2-digit slot per number so ord/pat/row don't shift the
 	   layout as they tick between 1 and 2 digits (tabular-nums alone can't —
@@ -882,8 +890,10 @@
 	.t-btn {
 		flex: 0 0 auto;
 		min-width: 40px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		color: var(--accent);
-		font-family: ui-monospace, monospace;
 	}
 	.t-info {
 		flex: 1;
