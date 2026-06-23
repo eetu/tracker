@@ -127,11 +127,13 @@ Cargo workspace = `backend` + `e2e`.
   `openmpt_module_ext_get_module_handle`, so the ext module can't be rendered and
   `play_note` can't reach the audio path. Needs a custom emscripten libopenmpt
   build (emcc not installed). Don't retry on the stock build.
-- **Next:** per-channel FT2 scopes (master scope exists; per-channel needs the
-  worklet to expose per-channel PCM); FT2 pixel font/chrome; reuse `BoingBall` as
-  a playback visualizer toggle; house tooling (Dockerfile/CI/hooks/`tracker-design`
-  skill); raspi deploy (CIFS `mods` share **mounted read-write** + quadlet,
-  mirror `navidrome`).
+- **Player view modes:** pattern (toggle: locked fixed-centerline + vertical
+  gradient VU, or free-scroll + header VU — persisted), samples, and a Boing-ball
+  visualizer (reacts to channel VU). Per-channel VU is the only per-channel signal
+  libopenmpt gives — true per-channel waveform scopes aren't possible.
+- **Next:** FT2 pixel font/chrome polish; house tooling (Dockerfile/CI/hooks/
+  `tracker-design` skill); raspi deploy (CIFS `mods` share **mounted read-write**
+  + quadlet, mirror `navidrome`).
 
 Out of scope: editing module *contents* (notes/samples), true stored-sample
 waveforms + loop points (libopenmpt exposes neither — waveforms are
