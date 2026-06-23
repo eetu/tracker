@@ -131,9 +131,17 @@ Cargo workspace = `backend` + `e2e`.
   gradient VU, or free-scroll + header VU — persisted), samples, and a Boing-ball
   visualizer (reacts to channel VU). Per-channel VU is the only per-channel signal
   libopenmpt gives — true per-channel waveform scopes aren't possible.
-- **Next:** FT2 pixel font/chrome polish; house tooling (Dockerfile/CI/hooks/
-  `tracker-design` skill); raspi deploy (CIFS `mods` share **mounted read-write**
-  + quadlet, mirror `navidrome`).
+- **Deploy:** multi-stage `Dockerfile` (vendored-yarn frontend build → musl
+  cross-compile → `scratch`, **8.4 MB** `ghcr.io/eetu/tracker`), smoke-tested
+  (scan, `/status`, SPA fallback, worklet served). **LAN-only, no oauth2-proxy:**
+  the container runs with **`TRACKER_OPEN=1`** (config bypasses the forward-auth
+  header assertion — same switch as `DEV_AUTH`); the host is egress-restricted.
+  raspi wiring done (`../raspi`): `mods` CIFS share **mounted read-write**,
+  `tasks/tracker.py` quadlet (mirrors `navidrome`), un-gated Traefik route,
+  `network_restrict` + `RESTIC` entry. **Before first deploy:** add
+  `mods_username`/`mods_password` to the `cifs` 1Password item.
+- **Next:** FT2 pixel font/chrome polish; remaining house tooling (CI workflows,
+  git hooks, `tracker-design` skill, SECURITY.md).
 
 Out of scope: editing module *contents* (notes/samples), true stored-sample
 waveforms + loop points (libopenmpt exposes neither — waveforms are
