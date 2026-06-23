@@ -1190,8 +1190,9 @@
 		.pv-title {
 			display: none;
 		}
-		/* Title gone, so pin the dismiss button to the top-right corner. */
-		.pv-close {
+		/* Title gone: tabs stay left, the centerline toggle + close group to the
+		   right (auto margin on the toggle pushes it and the close over). */
+		.pv-bar .t-btn {
 			margin-left: auto;
 		}
 	}
