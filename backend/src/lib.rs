@@ -59,7 +59,9 @@ fn inline_script_hashes(html: &str) -> Vec<String> {
     let mut idx = 0;
     while let Some(rel) = html[idx..].find("<script") {
         let tag = idx + rel;
-        let Some(gt) = html[tag..].find('>') else { break };
+        let Some(gt) = html[tag..].find('>') else {
+            break;
+        };
         let open = &html[tag..tag + gt + 1];
         let body_start = tag + gt + 1;
         let Some(close) = html[body_start..].find("</script>") else {
@@ -141,7 +143,10 @@ pub async fn run_server() -> anyhow::Result<()> {
             }
         });
     } else {
-        tracing::info!(track_count, "serving cached index; POST /api/rescan to refresh");
+        tracing::info!(
+            track_count,
+            "serving cached index; POST /api/rescan to refresh"
+        );
     }
 
     // Hash the SPA's inline bootstrap script(s) so the CSP can allow exactly

@@ -2,8 +2,9 @@
 //! there's no per-user state — so the binary doesn't run its own login. It
 //! sits behind oauth2-proxy forward-auth on the Pi and only asserts that the
 //! edge vouched for the request via `X-Auth-Request-User`, returning 401 if the
-//! header is absent (defence in depth; the edge is the real gate). `DEV_AUTH=1`
-//! bypasses this for local work. `/status` stays unauthenticated.
+//! header is absent (defence in depth; the edge is the real gate). The check is
+//! bypassed by `DEV_AUTH=1` (local work) or `TRACKER_OPEN=1` (a LAN-only deploy
+//! with no oauth2-proxy in front). `/status` stays unauthenticated.
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;

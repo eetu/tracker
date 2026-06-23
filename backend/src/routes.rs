@@ -34,7 +34,10 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> axum::response::Response {
+async fn serve_spa(
+    State(state): State<AppState>,
+    uri: axum::http::Uri,
+) -> axum::response::Response {
     use axum::response::Html;
 
     let base = &state.cfg.static_dir;
@@ -269,16 +272,24 @@ async fn api_rename(
     State(state): State<AppState>,
     Json(req): Json<RenameIn>,
 ) -> AppResult<Json<Value>> {
-    let group = clean_segment(&req.group).ok_or_else(|| AppError::BadRequest("invalid group".into()))?;
-    let filename =
-        clean_segment(&req.filename).ok_or_else(|| AppError::BadRequest("invalid filename".into()))?;
+    let group =
+        clean_segment(&req.group).ok_or_else(|| AppError::BadRequest("invalid group".into()))?;
+    let filename = clean_segment(&req.filename)
+        .ok_or_else(|| AppError::BadRequest("invalid filename".into()))?;
     if !crate::scan::has_module_ext(&filename) {
         return Err(AppError::BadRequest(
             "filename must keep a recognised module extension".into(),
         ));
     }
-    let artist = match req.artist.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        Some(a) => Some(clean_segment(a).ok_or_else(|| AppError::BadRequest("invalid artist".into()))?),
+    let artist = match req
+        .artist
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(a) => {
+            Some(clean_segment(a).ok_or_else(|| AppError::BadRequest("invalid artist".into()))?)
+        }
         None => None,
     };
     let to_rel = match &artist {
@@ -287,7 +298,9 @@ async fn api_rename(
     };
     let from_rel = req.from.clone();
     if from_rel == to_rel {
-        return Err(AppError::BadRequest("source and destination are the same".into()));
+        return Err(AppError::BadRequest(
+            "source and destination are the same".into(),
+        ));
     }
 
     let root = state.cfg.root.clone();
@@ -321,7 +334,9 @@ async fn api_rename(
     .await
     .map_err(|e| AppError::Internal(e.into()))?
     .map_err(|e| match e.kind() {
-        std::io::ErrorKind::AlreadyExists => AppError::Conflict("destination already exists".into()),
+        std::io::ErrorKind::AlreadyExists => {
+            AppError::Conflict("destination already exists".into())
+        }
         std::io::ErrorKind::NotFound => AppError::NotFound,
         _ => AppError::Internal(e.into()),
     })?;

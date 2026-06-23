@@ -39,13 +39,14 @@ fn is_junk(name: &str) -> bool {
 
 /// True if this entry is a hidden/junk directory we should not descend into.
 fn is_hidden_dir(e: &DirEntry) -> bool {
-    e.depth() > 0
-        && e.file_type().is_dir()
-        && e.file_name().to_string_lossy().starts_with('.')
+    e.depth() > 0 && e.file_type().is_dir() && e.file_name().to_string_lossy().starts_with('.')
 }
 
 fn module_ext(name: &str) -> Option<String> {
-    let ext = Path::new(name).extension()?.to_string_lossy().to_lowercase();
+    let ext = Path::new(name)
+        .extension()?
+        .to_string_lossy()
+        .to_lowercase();
     if MODULE_EXTS.contains(&ext.as_str()) {
         Some(ext)
     } else {

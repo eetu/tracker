@@ -9,8 +9,10 @@ use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub bind: String,
-    /// When set, `/api/*` is reachable without forward-auth headers (local dev).
-    /// Never enable in prod.
+    /// When set, `/api/*` is reachable without forward-auth headers. Enabled by
+    /// `DEV_AUTH=1` (local dev) or `TRACKER_OPEN=1` (a LAN-only deploy with no
+    /// oauth2-proxy in front — the collection is a single shared read-only
+    /// library, so edge SSO is optional when the host is network-restricted).
     pub dev_auth: bool,
     /// Root of the module collection. Required — the scanner walks this tree.
     pub root: PathBuf,
@@ -22,7 +24,8 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
-        let dev_auth = env::var("DEV_AUTH").as_deref() == Ok("1");
+        let dev_auth = env::var("DEV_AUTH").as_deref() == Ok("1")
+            || env::var("TRACKER_OPEN").as_deref() == Ok("1");
         let root = env::var("TRACKER_ROOT")
             .ok()
             .filter(|s| !s.is_empty())

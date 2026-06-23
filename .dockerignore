@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.svelte-kit
+target
+.git
+.github
+.claude
+*.log
+*.db
+*.db-shm
+*.db-wal
+**/.env
+**/.env.local
+README.md
+SECURITY.md
+.DS_Store
