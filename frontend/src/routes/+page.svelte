@@ -185,6 +185,26 @@
 		seekSeconds(frac * playback.duration);
 	}
 
+	// Desktop shortcuts: space = play/pause, ←/→ = prev/next, esc = close view.
+	// Ignored while typing in the filter or a rename field.
+	function onKey(e: KeyboardEvent) {
+		const el = e.target as HTMLElement | null;
+		if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+		if (e.key === 'Escape' && showPattern) {
+			showPattern = false;
+			return;
+		}
+		if (!playback.current) return;
+		if (e.key === ' ') {
+			e.preventDefault();
+			transportToggle();
+		} else if (e.key === 'ArrowRight' && hasNext) {
+			playNext();
+		} else if (e.key === 'ArrowLeft' && hasPrev) {
+			playPrev();
+		}
+	}
+
 	// ---- inline rename / move ----
 	let editingPath = $state<string | null>(null);
 	let dGroup = $state('');
@@ -238,6 +258,8 @@
 		else if (e.key === 'Escape') cancelEdit();
 	}
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 <header class="bar">
 	<div class="brand">tracker</div>
@@ -347,6 +369,7 @@
 									{t.title || t.filename}
 								</button>
 								<span class="sub">{subLabel(t)}</span>
+								{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
 								<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
 									<Pencil size={14} />
 								</button>
@@ -703,6 +726,12 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.dur {
+		flex: 0 0 auto;
+		color: var(--muted);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.pattern-overlay {
