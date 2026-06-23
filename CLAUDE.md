@@ -138,10 +138,34 @@ Cargo workspace = `backend` + `e2e`.
   header assertion — same switch as `DEV_AUTH`); the host is egress-restricted.
   raspi wiring done (`../raspi`): `mods` CIFS share **mounted read-write**,
   `tasks/tracker.py` quadlet (mirrors `navidrome`), un-gated Traefik route,
-  `network_restrict` + `RESTIC` entry. **Before first deploy:** add
-  `mods_username`/`mods_password` to the `cifs` 1Password item.
-- **Next:** FT2 pixel font/chrome polish; remaining house tooling (CI workflows,
-  git hooks, `tracker-design` skill, SECURITY.md).
+  `network_restrict` + `RESTIC` entry. The `mods` share **reuses the `music` NAS
+  login** via a `creds` alias, so no new vault fields are needed before deploy.
+- **CI/CD:** `.github/workflows/` — `ci` (frontend lint/format/typecheck/build +
+  Rust clippy/test/build + e2e), `dockerimage` (paths-gated arm64 → GHCR, prune
+  untagged), `automerge` (dependabot, skips actions bumps), `cve-scan` (weekly
+  Trivy → Security tab) + `dependabot.yaml`. Repo is public at `eetu/tracker`.
+- **Player/OS integration:** Media Session metadata + transport handlers
+  (play/pause/prev/next), a screen wake lock while playing, and an
+  `AudioContext` resume on return to foreground. iOS suspends Web Audio in the
+  background (only `HTMLMediaElement` survives — a render-to-`<audio>` bridge is
+  still fragile on iOS in 2026), so this is a foreground player by design.
+- **Next:** FT2 pixel font/chrome polish; remaining house tooling (git hooks,
+  `tracker-design` skill, SECURITY.md).
+- **Backlog (ideas):**
+  - **Favourites** — star individual tunes + a "Favourites" facet/list. Store
+    server-side keyed by `content_hash` (follows the file across moves, like
+    `meta`); global, not per-user (single shared library, edge auth).
+  - **Play counts** — increment per `content_hash` on play (debounced, e.g. once
+    a track has actually started); surface as a "most played" sort + a count
+    badge. Same hash-keyed table as favourites.
+  - **Installable offline PWA** — service worker caching the shell + chiptune
+    WASM (+ recently-played module bytes) for offline foreground playback.
+  - **Resume last session** — persist current track + queue + position to
+    `localStorage`, restore on load (tap-to-resume on iOS).
+  - **Faceted/sortable library** — sort by duration/channels/play-count, filter
+    by tracker/format, using the enrichment already collected.
+  - **Sample waveform pane** — render-captured PCM on the samples tab (no loop
+    markers — libopenmpt doesn't expose them).
 
 Out of scope: editing module *contents* (notes/samples), true stored-sample
 waveforms + loop points (libopenmpt exposes neither — waveforms are
