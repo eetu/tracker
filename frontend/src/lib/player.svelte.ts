@@ -65,6 +65,8 @@ export const playback = $state({
 	samples: [] as string[],
 	instruments: [] as string[],
 	muted: false,
+	shuffle: false,
+	repeat: false, // loop the current module forever (libopenmpt repeat_count = -1)
 	// Position in the play queue (the ordered list the current track was opened
 	// from), so next/prev and auto-advance work. -1 = no queue.
 	queueIndex: -1,
@@ -92,6 +94,7 @@ function ensurePlayer(): Promise<void> {
 		playback.row = d.row ?? 0;
 	});
 	player.onMetadata((meta: Meta) => {
+		player.setRepeatCount(playback.repeat ? -1 : 0);
 		playback.duration = meta?.dur ?? 0;
 		playback.song = meta?.song ?? null;
 		playback.samples = meta?.song?.samples ?? [];
@@ -99,8 +102,12 @@ function ensurePlayer(): Promise<void> {
 		if (playback.current) void saveMeta(playback.current, meta);
 	});
 	player.onEnded(() => {
-		// Auto-advance to the next track in the queue, else fall to stopped.
-		if (playback.queueIndex >= 0 && playback.queueIndex + 1 < queue.length) playNext();
+		// (With repeat on, the module loops and onEnded never fires.) Auto-advance
+		// to the next queue entry — random when shuffling — else fall to stopped.
+		const canNext =
+			playback.queueIndex >= 0 &&
+			(playback.shuffle ? queue.length > 1 : playback.queueIndex + 1 < queue.length);
+		if (canNext) playNext();
 		else playback.playing = false;
 	});
 	player.onError((e: { type?: string }) => {
@@ -141,12 +148,30 @@ export async function playInOrder(list: Track[], track: Track) {
 }
 
 export function playNext() {
-	const next = playback.queueIndex + 1;
-	if (playback.queueIndex >= 0 && next < queue.length) void playInOrder(queue, queue[next]);
+	if (playback.queueIndex < 0 || queue.length === 0) return;
+	let next: number;
+	if (playback.shuffle && queue.length > 1) {
+		do {
+			next = Math.floor(Math.random() * queue.length);
+		} while (next === playback.queueIndex);
+	} else {
+		next = playback.queueIndex + 1;
+		if (next >= queue.length) return;
+	}
+	void playInOrder(queue, queue[next]);
 }
 
 export function playPrev() {
 	if (playback.queueIndex > 0) void playInOrder(queue, queue[playback.queueIndex - 1]);
+}
+
+export function toggleShuffle() {
+	playback.shuffle = !playback.shuffle;
+}
+
+export function toggleRepeat() {
+	playback.repeat = !playback.repeat;
+	if (player) player.setRepeatCount(playback.repeat ? -1 : 0);
 }
 
 /** The transport play/pause/restart button: from stopped → restart the current

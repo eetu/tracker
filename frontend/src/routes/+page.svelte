@@ -4,6 +4,8 @@
 		Pause,
 		Pencil,
 		Play,
+		Repeat,
+		Shuffle,
 		SkipBack,
 		SkipForward,
 		Volume2,
@@ -22,6 +24,8 @@
 		playPrev,
 		seekSeconds,
 		setMuted,
+		toggleRepeat,
+		toggleShuffle,
 		transportToggle
 	} from '$lib/player.svelte';
 	import Scope from '$lib/Scope.svelte';
@@ -165,7 +169,8 @@
 	const flatTracks = $derived(groups.flatMap(([, items]) => items));
 	const hasPrev = $derived(playback.queueIndex > 0);
 	const hasNext = $derived(
-		playback.queueIndex >= 0 && playback.queueIndex + 1 < playback.queueLength
+		playback.queueIndex >= 0 &&
+			(playback.shuffle ? playback.queueLength > 1 : playback.queueIndex + 1 < playback.queueLength)
 	);
 
 	// Tapping a track opens the player (pattern) view. A new track starts playing
@@ -452,6 +457,24 @@
 			</button>
 			<button class="t-btn" onclick={playNext} disabled={!hasNext} aria-label="next">
 				<SkipForward size={16} />
+			</button>
+			<button
+				class="t-btn"
+				class:on={playback.shuffle}
+				onclick={toggleShuffle}
+				aria-label="shuffle"
+				title="shuffle"
+			>
+				<Shuffle size={16} />
+			</button>
+			<button
+				class="t-btn"
+				class:on={playback.repeat}
+				onclick={toggleRepeat}
+				aria-label="repeat"
+				title="repeat (loop)"
+			>
+				<Repeat size={16} />
 			</button>
 			<button
 				class="t-btn"
@@ -894,6 +917,11 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--accent);
+	}
+	.t-btn.on {
+		color: var(--bg);
+		background: var(--accent);
+		border-color: var(--accent);
 	}
 	.t-info {
 		flex: 1;
