@@ -81,25 +81,32 @@
 			main.moveTo(0, hY);
 			main.lineTo(W, hY); // horizon
 
-			// Floor rows — proper perspective spacing: far apart near the viewer,
-			// bunching toward the horizon (y = hY + floorH·N/(N+d)). Stop once rows
-			// would be within a few px so they don't merge into a band.
+			// Floor is a finite ground trapezoid: full-width near edge (bottom),
+			// a short centered back edge at the horizon (NOT a point — avoids the
+			// convergence spike). Straight edges, so widths are linear in screen-y.
+			const nearHalf = W * 0.65; // near edge half-width (spills past the sides)
+			const backHalf = W * 0.1; // back edge half-width at the horizon
+			const COLS = 16;
+
+			// Depth lines: near edge → back edge (fan to the short segment).
+			for (let i = 0; i <= COLS; i++) {
+				const f = i / COLS;
+				main.moveTo(vpX - nearHalf + f * 2 * nearHalf, H);
+				main.lineTo(vpX - backHalf + f * 2 * backHalf, hY);
+			}
+			// Rows: perspective-spaced (far apart near you, bunching toward the
+			// horizon), each spanning the trapezoid width at its depth.
 			const N = 1.6;
 			let prevY = Infinity;
 			for (let d = 0; d < 64; d++) {
 				const ry = hY + (floorH * N) / (N + d);
-				if (ry <= hY + 2) break;
+				if (ry <= hY + 1) break;
 				if (prevY - ry < 4) break;
-				main.moveTo(0, ry);
-				main.lineTo(W, ry);
+				const s = (H - ry) / (H - hY);
+				const half = nearHalf + (backHalf - nearHalf) * s;
+				main.moveTo(vpX - half, ry);
+				main.lineTo(vpX + half, ry);
 				prevY = ry;
-			}
-
-			// Floor depth lines — converge to the vanishing point on the horizon
-			// (rows are limited, so no dense band; this is the synthwave look).
-			for (let xn = vpX % GRID; xn <= W; xn += GRID) {
-				main.moveTo(xn, H);
-				main.lineTo(vpX, hY);
 			}
 			main.stroke();
 		}
