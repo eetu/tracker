@@ -25,7 +25,7 @@
 		const og: CanvasRenderingContext2D = offCtx;
 
 		const PIXEL = 4; // offscreen→screen upscale (ball chunkiness)
-		const GRID = 24; // grid cell size in CSS px (crisp)
+		const GRID = 44; // grid cell size in CSS px (crisp)
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
 		let W = 0; // CSS px (grid space)
 		let H = 0;
@@ -58,41 +58,52 @@
 			return Math.max(10, Math.min(60, Math.min(oW, oH) * 0.2));
 		}
 
-		// Authentic Boing scene: a flat back-wall grid up top and a one-point
-		// perspective floor below the horizon. Crisp, full resolution, grey bg.
+		// Boing scene over the app's (theme) background: a flat back-wall grid up
+		// top and a gentle one-point perspective floor below the horizon.
 		function grid() {
-			main.fillStyle = '#a8a8a8';
-			main.fillRect(0, 0, W, H);
+			main.clearRect(0, 0, W, H); // keep the theme bg behind
 			main.strokeStyle = '#b41eb4';
-			main.lineWidth = 1;
-			const hY = Math.round(H * 0.72); // horizon
+			main.lineWidth = 2;
+			const hY = Math.round(H * 0.7); // horizon
 			const floorH = H - hY;
 			const vpX = W / 2; // floor vanishing point (on the horizon)
 			main.beginPath();
 
-			// Wall — square grid from top down to the horizon.
+			// Wall — square grid from the top down to the horizon.
 			for (let gx = 0; gx <= W; gx += GRID) {
-				main.moveTo(gx + 0.5, 0);
-				main.lineTo(gx + 0.5, hY);
+				main.moveTo(gx, 0);
+				main.lineTo(gx, hY);
 			}
 			for (let gy = 0; gy <= hY; gy += GRID) {
-				main.moveTo(0, gy + 0.5);
-				main.lineTo(W, gy + 0.5);
+				main.moveTo(0, gy);
+				main.lineTo(W, gy);
 			}
-			main.moveTo(0, hY + 0.5);
-			main.lineTo(W, hY + 0.5); // horizon line
+			main.moveTo(0, hY);
+			main.lineTo(W, hY); // horizon
 
-			// Floor — depth lines converging to the vanishing point.
-			for (let xb = vpX % GRID; xb <= W; xb += GRID) {
-				main.moveTo(xb, H);
-				main.lineTo(vpX, hY);
+			// Floor rows — foreshortened but limited (so they don't pile into a
+			// band), each gap shrinking toward the horizon.
+			const ys: number[] = [];
+			let y = H;
+			let gap = floorH * 0.42;
+			for (let k = 0; k < 12; k++) {
+				ys.push(y);
+				y -= gap;
+				gap *= 0.7;
+				if (y <= hY + floorH * 0.12 || gap < 4) break;
 			}
-			// Floor — rows, foreshortened (closer together toward the horizon).
-			for (let k = 1; k <= 80; k++) {
-				const y = hY + floorH / (1 + k * 0.22);
-				if (y <= hY + 1) break;
-				main.moveTo(0, y);
-				main.lineTo(W, y);
+			for (const ry of ys) {
+				main.moveTo(0, ry);
+				main.lineTo(W, ry);
+			}
+
+			// Floor depth lines — converge toward the vanishing point but stop at
+			// the farthest row (no sharp single-point spike).
+			const yFar = ys[ys.length - 1];
+			const tf = (H - yFar) / (H - hY);
+			for (let xn = vpX % GRID; xn <= W; xn += GRID) {
+				main.moveTo(xn, H);
+				main.lineTo(xn + (vpX - xn) * tf, yFar);
 			}
 			main.stroke();
 		}
