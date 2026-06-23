@@ -57,15 +57,15 @@
 			g2.fillRect(0, 0, w, h);
 			g2.strokeStyle = '#b41eb4';
 			g2.lineWidth = 1;
-			const n = 14;
+			// Fixed square cells that tile (not a fixed line count), so the grid
+			// keeps its proportions at any container size/aspect ratio.
+			const cell = 8; // buffer px (~32px on screen at PIXEL=4)
 			g2.beginPath();
-			for (let i = 0; i <= n; i++) {
-				const gx = (i / n) * w;
+			for (let gx = 0; gx <= w; gx += cell) {
 				g2.moveTo(gx, 0);
 				g2.lineTo(gx, h);
 			}
-			for (let j = 0; j <= n; j++) {
-				const gy = (j / n) * h;
+			for (let gy = 0; gy <= h; gy += cell) {
 				g2.moveTo(0, gy);
 				g2.lineTo(w, gy);
 			}
