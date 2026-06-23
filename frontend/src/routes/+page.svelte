@@ -36,7 +36,7 @@
 	type GroupKey = 'group' | 'artist' | 'ext';
 
 	let showPattern = $state(false);
-	let pvTab = $state<'pattern' | 'samples'>('pattern');
+	let pvTab = $state<'pattern' | 'samples' | 'ball'>('pattern');
 	// Pattern view style: 'locked' = fixed centerline + vertical VU; 'scroll' =
 	// free-scrolling rows + header VU. Persisted across sessions.
 	let patternMode = $state<'locked' | 'scroll'>(
@@ -232,6 +232,8 @@
 	// The visible order is the play queue, so next/prev/auto-advance follow what
 	// you see (current grouping + filter).
 	const flatTracks = $derived(groups.flatMap(([, items]) => items));
+	// Loudest channel VU drives the Boing-ball visualizer energy.
+	const vuEnergy = $derived(playback.vu.length ? Math.max(...playback.vu) : 0);
 	const hasPrev = $derived(playback.queueIndex > 0);
 	const hasNext = $derived(
 		playback.queueIndex >= 0 &&
@@ -471,6 +473,7 @@
 			<div class="pv-tabs">
 				<button class:on={pvTab === 'pattern'} onclick={() => (pvTab = 'pattern')}>pattern</button>
 				<button class:on={pvTab === 'samples'} onclick={() => (pvTab = 'samples')}>samples</button>
+				<button class:on={pvTab === 'ball'} onclick={() => (pvTab = 'ball')}>ball</button>
 			</div>
 			{#if pvTab === 'pattern'}
 				<button
@@ -501,6 +504,10 @@
 				<div class="scope-strip"><Scope /></div>
 				<div class="pfill">
 					{#if patternMode === 'locked'}<PatternView />{:else}<PatternViewScroll />{/if}
+				</div>
+			{:else if pvTab === 'ball'}
+				<div class="ball-view">
+					<BoingBall energy={playback.playing && !playback.paused ? vuEnergy : 0} />
 				</div>
 			{:else}
 				<div class="samples">
@@ -964,6 +971,10 @@
 		border-bottom: 1px solid #2a2a3a;
 	}
 	.pfill {
+		flex: 1;
+		min-height: 0;
+	}
+	.ball-view {
 		flex: 1;
 		min-height: 0;
 	}

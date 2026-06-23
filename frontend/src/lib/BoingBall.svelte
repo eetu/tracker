@@ -6,6 +6,12 @@
 	// and floor-to-ceiling under gravity. Used as the "worth-the-wait" loader
 	// during the initial collection scan.
 
+	// `energy` (0..1) modulates the ball when used as a playback visualizer: it
+	// spins faster and pulses bigger with the music. Only spin (incremental) and
+	// radius (size) react — the analytic position speeds stay fixed so the bounce
+	// never jumps. Default 0 = idle (the scan loader).
+	let { energy = 0 }: { energy?: number } = $props();
+
 	let canvas: HTMLCanvasElement | null = $state(null);
 
 	$effect(() => {
@@ -161,7 +167,10 @@
 				const bounce = Math.abs(Math.sin(t * V_SPEED));
 				const y = floor - (floor - ceil) * bounce;
 
-				spin += SPIN_RATE * dir * dt;
+				// React to the music: spin faster + pulse bigger with energy. Bounds
+				// stay on the base radius so the bounce path never jumps.
+				spin += SPIN_RATE * (0.6 + energy * 2) * dir * dt;
+				const rDraw = r * (1 + energy * 0.15);
 
 				grid();
 				// shadow on the floor, fading + shrinking as the ball rises
@@ -170,11 +179,19 @@
 				g2.globalAlpha = 0.35 * (1 - lift * 0.6);
 				g2.fillStyle = '#000';
 				g2.beginPath();
-				g2.ellipse(x, floor + r * 0.85, r * (1.1 - lift * 0.3), r * 0.28, 0, 0, Math.PI * 2);
+				g2.ellipse(
+					x,
+					floor + r * 0.85,
+					rDraw * (1.1 - lift * 0.3),
+					rDraw * 0.28,
+					0,
+					0,
+					Math.PI * 2
+				);
 				g2.fill();
 				g2.restore();
 
-				ball(x, y, r);
+				ball(x, y, rDraw);
 			}
 			raf = requestAnimationFrame(frame);
 		}
