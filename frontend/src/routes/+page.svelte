@@ -14,6 +14,7 @@
 		X
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	import { api, ApiError, fileUrl, type StatusResponse, type Track } from '$lib/api';
 	import BoingBall from '$lib/BoingBall.svelte';
@@ -229,6 +230,14 @@
 		return t.artist ? `${t.group} · ${t.artist}` : t.group;
 	}
 
+	// Only render rows for open groups (≤12 groups → all open). With hundreds of
+	// groups collapsed this keeps thousands of <li>/icons out of the DOM.
+	const openGroups = new SvelteSet<string>();
+	const expandAll = $derived(groups.length <= 12);
+	function isOpen(name: string): boolean {
+		return expandAll || openGroups.has(name);
+	}
+
 	// The visible order is the play queue, so next/prev/auto-advance follow what
 	// you see (current grouping + filter).
 	const flatTracks = $derived(groups.flatMap(([, items]) => items));
@@ -416,51 +425,60 @@
 		</p>
 	{:else}
 		{#each groups as [name, items] (name)}
-			<details class="grp" open={groups.length <= 12}>
+			<details
+				class="grp"
+				open={expandAll}
+				ontoggle={(e) => {
+					if (e.currentTarget.open) openGroups.add(name);
+					else openGroups.delete(name);
+				}}
+			>
 				<summary>
 					<span class="grp-name">{name}</span>
 					<span class="grp-count">{items.length}</span>
 				</summary>
-				<ul>
-					{#each items as t (t.path)}
-						<li
-							class:editing={editingPath === t.path}
-							class:current={playback.current?.path === t.path}
-						>
-							{#if editingPath === t.path}
-								<span class="fmt">{t.ext}</span>
-								<input class="edit-in" bind:value={dGroup} placeholder="group" />
-								<input class="edit-in" bind:value={dArtist} placeholder="artist (optional)" />
-								<input
-									class="edit-in fname"
-									bind:value={dFilename}
-									placeholder="filename"
-									onkeydown={(e) => onEditKey(e, t)}
-								/>
-								<button class="ok" onclick={() => saveEdit(t)} disabled={saving}>save</button>
-								<button onclick={cancelEdit} disabled={saving}>cancel</button>
-								{#if renameError}<span class="rename-err">{renameError}</span>{/if}
-							{:else}
-								<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
-									{#if playback.current?.path === t.path && playback.playing && !playback.paused}
-										<AudioLines size={15} />
-									{:else}
-										<Play size={15} />
-									{/if}
-								</button>
-								<span class="fmt">{t.ext}</span>
-								<button class="name" title={t.path} onclick={() => openTrack(t)}>
-									{t.title || t.filename}
-								</button>
-								<span class="sub">{subLabel(t)}</span>
-								{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
-								<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
-									<Pencil size={14} />
-								</button>
-							{/if}
-						</li>
-					{/each}
-				</ul>
+				{#if isOpen(name)}
+					<ul>
+						{#each items as t (t.path)}
+							<li
+								class:editing={editingPath === t.path}
+								class:current={playback.current?.path === t.path}
+							>
+								{#if editingPath === t.path}
+									<span class="fmt">{t.ext}</span>
+									<input class="edit-in" bind:value={dGroup} placeholder="group" />
+									<input class="edit-in" bind:value={dArtist} placeholder="artist (optional)" />
+									<input
+										class="edit-in fname"
+										bind:value={dFilename}
+										placeholder="filename"
+										onkeydown={(e) => onEditKey(e, t)}
+									/>
+									<button class="ok" onclick={() => saveEdit(t)} disabled={saving}>save</button>
+									<button onclick={cancelEdit} disabled={saving}>cancel</button>
+									{#if renameError}<span class="rename-err">{renameError}</span>{/if}
+								{:else}
+									<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
+										{#if playback.current?.path === t.path && playback.playing && !playback.paused}
+											<AudioLines size={15} />
+										{:else}
+											<Play size={15} />
+										{/if}
+									</button>
+									<span class="fmt">{t.ext}</span>
+									<button class="name" title={t.path} onclick={() => openTrack(t)}>
+										{t.title || t.filename}
+									</button>
+									<span class="sub">{subLabel(t)}</span>
+									{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
+									<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
+										<Pencil size={14} />
+									</button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			</details>
 		{/each}
 	{/if}

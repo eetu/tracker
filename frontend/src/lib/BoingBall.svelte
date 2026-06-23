@@ -21,8 +21,13 @@
 		const off = document.createElement('canvas');
 		const offCtx = off.getContext('2d');
 		if (!offCtx) return;
+		// Static grid is cached here and redrawn only on resize (not every frame).
+		const gridC = document.createElement('canvas');
+		const gridCtx = gridC.getContext('2d');
+		if (!gridCtx) return;
 		const main: CanvasRenderingContext2D = mainCtx;
 		const og: CanvasRenderingContext2D = offCtx;
+		const gg: CanvasRenderingContext2D = gridCtx;
 
 		const PIXEL = 4; // offscreen→screen upscale (ball chunkiness)
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -42,6 +47,11 @@
 			oH = Math.max(1, Math.round(H / PIXEL));
 			off.width = oW;
 			off.height = oH;
+			// Re-render the static grid once, at the new size.
+			gridC.width = el.width;
+			gridC.height = el.height;
+			gg.setTransform(dpr, 0, 0, dpr, 0, 0);
+			grid();
 		});
 		ro.observe(el);
 
@@ -60,9 +70,9 @@
 		// Boing scene over the app's (theme) background: a flat back-wall grid up
 		// top and a gentle one-point perspective floor below the horizon.
 		function grid() {
-			main.clearRect(0, 0, W, H); // keep the theme bg behind
-			main.strokeStyle = '#b41eb4';
-			main.lineWidth = 2;
+			gg.clearRect(0, 0, W, H); // transparent — theme bg shows through
+			gg.strokeStyle = '#b41eb4';
+			gg.lineWidth = 2;
 			// Cell size scales with the smaller dimension (clamped) so the grid
 			// density stays balanced at any container size / aspect ratio.
 			const GRID = Math.max(26, Math.min(64, Math.round(Math.min(W, H) / 11)));
@@ -71,19 +81,19 @@
 			const hY = Math.round((H * 0.7) / GRID) * GRID; // horizon
 			const floorH = H - hY;
 			const vpX = W / 2; // floor vanishing point (on the horizon)
-			main.beginPath();
+			gg.beginPath();
 
 			// Wall — square grid from the top down to the horizon.
 			for (let gx = 0; gx <= W; gx += GRID) {
-				main.moveTo(gx, 0);
-				main.lineTo(gx, hY);
+				gg.moveTo(gx, 0);
+				gg.lineTo(gx, hY);
 			}
 			for (let gy = 0; gy <= hY; gy += GRID) {
-				main.moveTo(0, gy);
-				main.lineTo(W, gy);
+				gg.moveTo(0, gy);
+				gg.lineTo(W, gy);
 			}
-			main.moveTo(0, hY);
-			main.lineTo(W, hY); // horizon
+			gg.moveTo(0, hY);
+			gg.lineTo(W, hY); // horizon
 
 			// Floor continues the room: depth lines pick up the wall's verticals at
 			// the horizon (full width) and fan gently OUTWARD toward the viewer (near
@@ -92,8 +102,8 @@
 			const backHalf = W / 2; // back edge = full wall width at the horizon
 			const nearHalf = backHalf * spread;
 			for (let x = 0; x <= W; x += GRID) {
-				main.moveTo(x, hY);
-				main.lineTo(vpX + (x - vpX) * spread, H);
+				gg.moveTo(x, hY);
+				gg.lineTo(vpX + (x - vpX) * spread, H);
 			}
 			// Rows: a fixed count, power-law spaced so they bunch toward the horizon
 			// AND the farthest lands exactly on it (no wide gap at the wall/floor
@@ -105,10 +115,10 @@
 				const ry = hY + floorH * Math.pow(f, POW);
 				const s = (H - ry) / (H - hY); // 0 near the viewer, 1 at the horizon
 				const half = backHalf + (nearHalf - backHalf) * (1 - s);
-				main.moveTo(vpX - half, ry);
-				main.lineTo(vpX + half, ry);
+				gg.moveTo(vpX - half, ry);
+				gg.lineTo(vpX + half, ry);
 			}
-			main.stroke();
+			gg.stroke();
 		}
 
 		function project(theta: number, phi: number) {
@@ -203,8 +213,10 @@
 				spin += SPIN_RATE * (0.6 + energy * 2) * dir * dt;
 				const rDraw = r * (1 + energy * 0.15);
 
-				// Grid layer (crisp, full-res).
-				grid();
+				// Grid layer: blit the cached static grid (redrawn only on resize).
+				main.clearRect(0, 0, W, H);
+				main.imageSmoothingEnabled = false;
+				main.drawImage(gridC, 0, 0, W, H);
 
 				// Ball layer (low-res offscreen, transparent), then composite up.
 				og.clearRect(0, 0, oW, oH);
@@ -215,7 +227,6 @@
 				og.fill();
 				ball(x, y, rDraw);
 
-				main.imageSmoothingEnabled = false;
 				main.drawImage(off, 0, 0, oW, oH, 0, 0, W, H);
 			}
 			raf = requestAnimationFrame(frame);
