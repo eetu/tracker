@@ -1176,5 +1176,17 @@
 			align-self: center;
 			padding-left: 4px;
 		}
+		/* The player-view top bar repeats the song name the footer already shows
+		   — drop it on a phone so the tabs + close get the width. */
+		.pv-bar {
+			gap: 8px;
+		}
+		.pv-title {
+			display: none;
+		}
+		/* Title gone, so pin the dismiss button to the top-right corner. */
+		.pv-close {
+			margin-left: auto;
+		}
 	}
 </style>
