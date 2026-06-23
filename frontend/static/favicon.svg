@@ -1,9 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-	<rect width="32" height="32" rx="6" fill="#0d0f12" />
-	<g fill="#f0a02a">
-		<rect x="6" y="14" width="3" height="4" />
-		<rect x="11" y="9" width="3" height="14" />
-		<rect x="16" y="6" width="3" height="20" />
-		<rect x="21" y="11" width="3" height="10" />
-	</g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0d0f12"/>
+  <rect x="60" y="201" width="392" height="110" rx="16" fill="#f0a02a" opacity="0.16"/>
+  <g fill="#5c6677">
+    <rect x="101" y="101" width="86" height="86" rx="12"/>
+    <rect x="213" y="101" width="86" height="86" rx="12"/>
+    <rect x="325" y="101" width="86" height="86" rx="12"/>
+    <rect x="101" y="325" width="86" height="86" rx="12"/>
+    <rect x="213" y="325" width="86" height="86" rx="12"/>
+    <rect x="325" y="325" width="86" height="86" rx="12"/>
+  </g>
+  <g fill="#f0a02a">
+    <rect x="101" y="213" width="86" height="86" rx="12"/>
+    <rect x="213" y="213" width="86" height="86" rx="12"/>
+    <rect x="325" y="213" width="86" height="86" rx="12"/>
+  </g>
 </svg>
