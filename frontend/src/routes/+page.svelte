@@ -604,9 +604,8 @@
 				</span>
 			</button>
 			<div class="t-time">
-				{fmtTime(playback.position)}{#if playback.duration}&nbsp;/&nbsp;{fmtTime(
-						playback.duration
-					)}{/if}
+				{fmtTime(playback.position)}{#if playback.duration}
+					/ {fmtTime(playback.duration)}{/if}
 			</div>
 			<div class="t-pos">
 				ord <span class="num">{playback.order}</span> · pat
@@ -1053,8 +1052,9 @@
 	}
 	.t-meta {
 		display: block;
+		font-family: var(--font-retro);
+		font-size: 11px;
 		color: var(--muted);
-		font-size: 12px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
