@@ -66,7 +66,9 @@
 			// Cell size scales with the smaller dimension (clamped) so the grid
 			// density stays balanced at any container size / aspect ratio.
 			const GRID = Math.max(26, Math.min(64, Math.round(Math.min(W, H) / 11)));
-			const hY = Math.round(H * 0.7); // horizon
+			// Snap the horizon to a grid line so the wall's bottom row is a full
+			// cell (not a leftover wide/narrow strip at the wall/floor corner).
+			const hY = Math.round((H * 0.7) / GRID) * GRID; // horizon
 			const floorH = H - hY;
 			const vpX = W / 2; // floor vanishing point (on the horizon)
 			main.beginPath();

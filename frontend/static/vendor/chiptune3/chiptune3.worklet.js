@@ -235,6 +235,7 @@ class MPT extends AudioWorkletProcessor {
 		const ptrToFile = libopenmpt._malloc(byteArray.byteLength)
 		libopenmpt.HEAPU8.set(byteArray, ptrToFile)
 		this.modulePtr = libopenmpt._openmpt_module_create_from_memory(ptrToFile, byteArray.byteLength, 0, 0, 0)
+		libopenmpt._free(ptrToFile) // PATCH (tracker): openmpt copies the bytes; free the temp buffer (upstream leaked it every play -> OOM)
 
 		if(this.modulePtr === 0) {
 			// could not create module
@@ -269,13 +270,13 @@ class MPT extends AudioWorkletProcessor {
 			libopenmpt._openmpt_module_destroy(this.modulePtr)
 			this.modulePtr = 0
 		}
-		if (this.leftBufferPtr != 0) {
-			libopenmpt._free(this.leftBufferPtr)
-			this.leftBufferPtr = 0
+		if (this.leftPtr != 0) {
+			libopenmpt._free(this.leftPtr)
+			this.leftPtr = 0
 		}
-		if (this.rightBufferPtr != 0) {
-			libopenmpt._free(this.rightBufferPtr)
-			this.rightBufferPtr = 0
+		if (this.rightPtr != 0) {
+			libopenmpt._free(this.rightPtr)
+			this.rightPtr = 0
 		}
 		this.channels = 0
 	}
