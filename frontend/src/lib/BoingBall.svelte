@@ -97,13 +97,11 @@
 				main.lineTo(W, ry);
 			}
 
-			// Floor depth lines — converge toward the vanishing point but stop at
-			// the farthest row (no sharp single-point spike).
-			const yFar = ys[ys.length - 1];
-			const tf = (H - yFar) / (H - hY);
+			// Floor depth lines — converge to the vanishing point on the horizon
+			// (rows are limited, so no dense band; this is the synthwave look).
 			for (let xn = vpX % GRID; xn <= W; xn += GRID) {
 				main.moveTo(xn, H);
-				main.lineTo(xn + (vpX - xn) * tf, yFar);
+				main.lineTo(vpX, hY);
 			}
 			main.stroke();
 		}
