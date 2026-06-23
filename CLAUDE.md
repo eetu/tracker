@@ -1,0 +1,131 @@
+# tracker — repo overview
+
+FastTracker 2-style player for a filesystem tracker-module collection. Browse
+~3500 modules by group/artist/format and play them (MOD/XM/S3M/IT + the obscure
+legacy zoo) via libopenmpt WASM, with a pixel-perfect FT2 UI. Sibling in eetu's
+homebrew family ([represent](../represent), [scribe](../scribe),
+[halo](../halo)) — Rust(axum) + SvelteKit, halo-design.
+
+## Layout
+
+```
+backend/    Rust axum 0.8 — scans TRACKER_ROOT, SQLite cache, serves bytes + SPA
+frontend/   Svelte 5 + SvelteKit (adapter-static) — library browser + (todo) FT2 UI
+e2e/        spawned-binary integration tests (temp root + SQLite, real HTTP)
+```
+
+Cargo workspace = `backend` + `e2e`.
+
+## Conventions
+
+- **Filesystem is the source of truth.** `TRACKER_ROOT/group/artist/song.ext`.
+  The first path segment is the group, the second (when present) the artist —
+  files directly under a group dir have no artist. No sidecar metadata files;
+  files can be freely moved with ordinary tools and a rescan reconciles. The
+  list view also renames/moves files in place (`/api/rename`) — handy for
+  cleaning up names from old CD rips. **This means the collection mount must be
+  read-write**, not the `:ro` the original deploy plan assumed — the raspi
+  quadlet must mount `/mnt/mods` writable. Renames never overwrite (409 on
+  collision) and keep a module extension (so the file stays indexed).
+- **The DB is a cache, not state.** `files` is a path index; `meta` is
+  libopenmpt-parsed enrichment **keyed by content hash** so it follows a file
+  across moves/renames (the path changes, the bytes don't). Losing
+  `TRACKER_DB_PATH` only costs a rescan. Idempotent boot migrations (no
+  `user_version` gating).
+- **Don't rehash the NAS every scan.** `content_hash` is reused when
+  `(rel_path, size, mtime)` is unchanged; only new/changed files are read +
+  SHA-256'd. First scan of the full collection hashes everything (~2.5 min over
+  CIFS for 3455 files); later scans are cheap. macOS junk (`._*`, `.DS_Store`,
+  …) and hidden dirs are skipped.
+- **One engine, in the browser.** The backend is pure Rust (no native
+  libopenmpt → clean scratch container). Playback **and** metadata extraction
+  run in the SPA via libopenmpt WASM (chiptune3's prebuilt build includes
+  `libopenmpt_ext`, so keyboard `play_note` works — vendor + patch its worklet).
+  The frontend POSTs parsed metadata back to `/api/meta/:hash`.
+- **Auth is the edge's job.** Sits behind oauth2-proxy forward-auth; the binary
+  only asserts `X-Auth-Request-User` is present (401 otherwise) — no per-user
+  state, no own login. `DEV_AUTH=1` bypasses for local work. `/status` is unauth.
+- **CSP** allows `'wasm-unsafe-eval'` + `worker-src blob:` for the WASM player,
+  and hashes SvelteKit's inline bootstrap script at boot (no `'unsafe-inline'`).
+- **Type sharing is manual**: `frontend/src/lib/api.ts` mirrors
+  `backend/src/routes.rs` structs by hand.
+- **Design.** Icons are **Lucide** (`@lucide/svelte`), squared (CSS overrides the
+  default round strokes to `square`/`miter`, thicker stroke, small) to sit with
+  the retro fonts — **not** Material Icons. Fonts are **self-hosted via fontsource**
+  (no Google CDN): Inter Variable (body); on the player surface VT323 (retro mono:
+  pattern grid, sample list, ord/pat/row readouts) + Press Start 2P (brand). The
+  full halo `colors_and_type.css` isn't adopted yet — a provisional dark palette
+  lives in `+layout.svelte` (the `tracker-design` skill / halo pass is still todo).
+- **Player control model** (`player.svelte.ts` is a small state machine —
+  stopped/playing/paused over one loaded `current` module): tapping a track opens
+  the player (pattern) view and plays it; the already-loaded track just reopens
+  the view (no rewind). Transport: play/pause toggles in place; **stop** halts +
+  resets to the top but keeps the module loaded and the view open (button flips to
+  play); **✕** returns to the list (playback continues as a bottom mini-player —
+  tap its title to reopen the view); **mute** is an orthogonal volume toggle.
+
+## API
+
+- `GET /status` — unauth liveness `{service, version, db_healthy, track_count, root}`.
+- `GET /api/tracks` — full library index (path-derived + cached meta, LEFT JOIN).
+- `GET /api/file/{hash}` — raw module bytes (player + WASM parse).
+- `POST /api/meta/{hash}` — store enrichment parsed in the browser.
+- `POST /api/rename` — rename / move a module by editing its group/artist/
+  filename segments (validates safe segments, refuses overwrite, moves on disk,
+  updates the index row in place; metadata follows by hash).
+- `POST /api/rescan` — re-walk the tree (synchronous; returns counts).
+- `GET /status` also reports live scan progress (`scanning`, `scan_total`,
+  `scan_processed`, `scan_hashed`) from lock-free counters, so the UI can show a
+  progress bar without touching the scan-locked DB.
+
+## Working on this repo
+
+- Backend `:3010` (`TRACKER_BIND`): `cd backend && cp .env.example .env`, set
+  `TRACKER_ROOT` (dev: `/Volumes/mods` NAS mount), then `cargo run`. Boot only
+  scans when the cache is **empty** (first run); a normal restart serves the
+  persisted index instantly without re-walking the NAS. `/api/rescan` (synchronous)
+  picks up on-disk changes.
+- Frontend dev `:5173`: `cd frontend && yarn install && yarn dev`; Vite proxies
+  `/api` + `/status` to `:3010`. `yarn validate` = typecheck + lint + format.
+- e2e: `cargo build -p tracker-backend && cargo test -p tracker-e2e -- --ignored`.
+- Key env: `TRACKER_ROOT` (required), `TRACKER_BIND`, `TRACKER_DB_PATH`,
+  `STATIC_DIR`, `DEV_AUTH`. See `backend/src/config.rs`.
+
+## Status / roadmap
+
+- **Done:** backend scanner + SQLite cache + API; SvelteKit SPA + library browser
+  (group/artist/format facets, filter, rescan); **live scan progress bar**;
+  **in-place rename/move** (inline edit in the list); **iPhone-portrait
+  responsive UI** ([[feedback_iphone_portrait_ui]]); **libopenmpt WASM playback**
+  via vendored chiptune3 (play/pause/stop transport, position, order/pattern/row)
+  + **metadata write-back on play** (`/api/meta`); **live FT2 pattern view**
+  (full-screen overlay, current row highlighted + auto-scrolled) with an
+  **instrument/sample-list tab** and a **master oscilloscope** (`Scope.svelte`,
+  AnalyserNode tap on the output); an **Amiga Boing Ball loader**
+  (`BoingBall.svelte`, time-driven seamless bounce) shown during the first-run
+  scan; e2e (7) + unit (11) tests; verified against the real NAS collection
+  (3455 modules).
+- **Playback engine notes:** chiptune3 worklet + embedded-wasm live in
+  `static/vendor/chiptune3/` (served verbatim, 200 `text/javascript`); the
+  main-thread class is vendored+patched in `src/lib/vendor/chiptune3.js` (load
+  the worklet from a fixed `/vendor/...` URL so Vite doesn't bundle it). The
+  **worklet's `getSong` is patched** to emit each cell as libopenmpt's formatted
+  text (`format_pattern_row_channel` → "C-4 01 v64 A04") instead of 6 raw command
+  values — runs once per load, off the audio path. `src/lib/player.svelte.ts` is
+  the reactive store; `PatternView.svelte` renders the grid. **Vendored worklet
+  files are excluded from eslint + prettier** (`static/vendor/`, `src/lib/vendor/`)
+  — prettier silently reformats them otherwise. **Pending acceptance: in-browser
+  audio + pattern smoke test** (everything else is statically verified).
+- **Next:** per-channel FT2 scopes (the master scope exists; per-channel needs
+  the worklet to expose per-channel PCM); sample-tab **keyboard jamming** (needs
+  a further worklet patch to expose `libopenmpt_ext` `play_note`) + render-captured
+  waveform; FT2
+  pixel font/chrome; reuse `BoingBall` as a playback visualizer toggle; a "Scan
+  all" enrichment button; house tooling (Dockerfile/CI/hooks/`tracker-design`
+  skill); raspi deploy (CIFS `mods` share **mounted read-write** + quadlet,
+  mirror `navidrome`).
+
+Out of scope: editing module *contents* (notes/samples), true stored-sample
+waveforms + loop points (libopenmpt exposes neither — waveforms are
+render-captured). Renaming/moving files *is* in scope (see above). See
+`/Users/eetu/.claude/plans/magical-floating-toucan.md` for the full plan.

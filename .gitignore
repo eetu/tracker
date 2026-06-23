@@ -1,0 +1,12 @@
+target/
+node_modules/
+.env
+.env.local
+backend/.env
+*.log
+.DS_Store
+dist/
+.svelte-kit/
+*.db
+*.db-shm
+*.db-wal
