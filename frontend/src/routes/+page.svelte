@@ -12,8 +12,6 @@
 		SkipBack,
 		SkipForward,
 		Sun,
-		Volume2,
-		VolumeX,
 		X
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -30,7 +28,6 @@
 		playNext,
 		playPrev,
 		seekSeconds,
-		setMuted,
 		toggleRepeat,
 		toggleShuffle,
 		transportToggle
@@ -602,14 +599,6 @@
 			>
 				<Repeat size={16} />
 			</button>
-			<button
-				class="t-btn"
-				onclick={() => setMuted(!playback.muted)}
-				aria-label={playback.muted ? 'unmute' : 'mute'}
-				title={playback.muted ? 'unmute' : 'mute'}
-			>
-				{#if playback.muted}<VolumeX size={16} />{:else}<Volume2 size={16} />{/if}
-			</button>
 			<button class="t-info" onclick={() => (showPattern = true)} title="open player view">
 				<span class="t-title">{playback.current.title || playback.current.filename}</span>
 				<span class="t-meta">
@@ -1166,7 +1155,9 @@
 			order: -1;
 			flex-basis: 100%;
 		}
-		.t-btn {
+		/* Only the transport buttons share the row; the player-bar toggle (same
+		   class) must keep its natural size. */
+		.t-controls .t-btn {
 			flex: 1;
 			min-width: 0;
 			padding: 8px 0;

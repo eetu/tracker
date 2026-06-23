@@ -74,7 +74,15 @@
 		line-height: 1;
 		white-space: nowrap;
 		-webkit-overflow-scrolling: touch;
+		/* Swipe between whole channel columns: snap each column flush past the
+		   frozen row-number gutter, so a column is never half-cut. */
+		scroll-snap-type: x mandatory;
+		scroll-padding-left: 30px; /* = ROWNUM_W (frozen gutter) */
+		scrollbar-width: none; /* Firefox — no scrollbar, swipe only */
 	}
+	.pv::-webkit-scrollbar {
+		display: none;
+	} /* WebKit/Blink */
 	.content {
 		position: relative;
 		height: 100%;
@@ -115,6 +123,11 @@
 		text-align: right;
 		padding: 0 6px;
 		color: var(--surface-fg-dim);
+		/* Frozen left gutter so row numbers stay put while channels scroll. */
+		position: sticky;
+		left: 0;
+		z-index: 2;
+		background: var(--surface);
 	}
 	.cell {
 		flex: 0 0 auto;
@@ -122,6 +135,7 @@
 		padding: 0 8px;
 		border-left: 1px solid var(--surface-line);
 		overflow: hidden;
+		scroll-snap-align: start;
 	}
 	.vu-overlay {
 		position: absolute;

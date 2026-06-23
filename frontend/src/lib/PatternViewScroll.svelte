@@ -61,6 +61,14 @@
 		line-height: 1.2;
 		white-space: nowrap;
 		-webkit-overflow-scrolling: touch;
+		/* Swipe between whole channel columns (x only — rows still scroll
+		   freely on y); snap flush past the frozen row-number gutter. */
+		scroll-snap-type: x mandatory;
+		scroll-padding-left: 30px; /* = row-number gutter */
+		scrollbar-width: none;
+	}
+	.pv::-webkit-scrollbar {
+		display: none;
 	}
 	.phead {
 		position: sticky;
@@ -90,6 +98,7 @@
 		color: var(--surface-fg-dim);
 		position: sticky;
 		left: 0;
+		z-index: 2;
 		background: inherit;
 	}
 	.cell {
@@ -98,6 +107,7 @@
 		padding: 0 8px;
 		border-left: 1px solid var(--surface-line);
 		letter-spacing: 0.02em;
+		scroll-snap-align: start;
 	}
 	.cell.head {
 		display: flex;
