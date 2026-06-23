@@ -6,7 +6,6 @@
 		Play,
 		SkipBack,
 		SkipForward,
-		Square,
 		Volume2,
 		VolumeX,
 		X
@@ -23,7 +22,6 @@
 		playPrev,
 		seekSeconds,
 		setMuted,
-		stop,
 		transportToggle
 	} from '$lib/player.svelte';
 	import Scope from '$lib/Scope.svelte';
@@ -455,7 +453,6 @@
 			<button class="t-btn" onclick={playNext} disabled={!hasNext} aria-label="next">
 				<SkipForward size={16} />
 			</button>
-			<button class="t-btn" onclick={stop} aria-label="stop"><Square size={16} /></button>
 			<button
 				class="t-btn"
 				onclick={() => setMuted(!playback.muted)}

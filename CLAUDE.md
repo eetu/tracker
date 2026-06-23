@@ -59,10 +59,12 @@ Cargo workspace = `backend` + `e2e`.
 - **Player control model** (`player.svelte.ts` is a small state machine —
   stopped/playing/paused over one loaded `current` module): tapping a track opens
   the player (pattern) view and plays it; the already-loaded track just reopens
-  the view (no rewind). Transport: play/pause toggles in place; **stop** halts +
-  resets to the top but keeps the module loaded and the view open (button flips to
-  play); **✕** returns to the list (playback continues as a bottom mini-player —
-  tap its title to reopen the view); **mute** is an orthogonal volume toggle.
+  the view (no rewind). Transport: play/pause toggles in place (and restarts from
+  the top once the queue has ended — the stopped state); prev/next walk the queue
+  (the visible grouped+filtered order) with auto-advance; a click-to-seek bar;
+  **✕** returns to the list (playback continues as a bottom mini-player — tap its
+  title to reopen the view); **mute** is an orthogonal volume toggle. (No stop
+  button — pause covers it.)
 
 ## API
 
