@@ -81,18 +81,15 @@
 			main.moveTo(0, hY);
 			main.lineTo(W, hY); // horizon
 
-			// Floor is a finite ground trapezoid: full-width near edge (bottom),
-			// a short centered back edge at the horizon (NOT a point — avoids the
-			// convergence spike). Straight edges, so widths are linear in screen-y.
-			const nearHalf = W * 0.65; // near edge half-width (spills past the sides)
-			const backHalf = W * 0.1; // back edge half-width at the horizon
-			const COLS = 16;
-
-			// Depth lines: near edge → back edge (fan to the short segment).
-			for (let i = 0; i <= COLS; i++) {
-				const f = i / COLS;
-				main.moveTo(vpX - nearHalf + f * 2 * nearHalf, H);
-				main.lineTo(vpX - backHalf + f * 2 * backHalf, hY);
+			// Floor continues the room: depth lines pick up the wall's verticals at
+			// the horizon (full width) and fan gently OUTWARD toward the viewer (near
+			// edge wider than the back). No central runway / convergence spike.
+			const spread = 1.45; // near edge width / back edge width
+			const backHalf = W / 2; // back edge = full wall width at the horizon
+			const nearHalf = backHalf * spread;
+			for (let x = 0; x <= W; x += GRID) {
+				main.moveTo(x, hY);
+				main.lineTo(vpX + (x - vpX) * spread, H);
 			}
 			// Rows: perspective-spaced (far apart near you, bunching toward the
 			// horizon), each spanning the trapezoid width at its depth.
@@ -102,8 +99,8 @@
 				const ry = hY + (floorH * N) / (N + d);
 				if (ry <= hY + 1) break;
 				if (prevY - ry < 4) break;
-				const s = (H - ry) / (H - hY);
-				const half = nearHalf + (backHalf - nearHalf) * s;
+				const s = (H - ry) / (H - hY); // 1 at the back, 0 near the viewer
+				const half = backHalf + (nearHalf - backHalf) * (1 - s);
 				main.moveTo(vpX - half, ry);
 				main.lineTo(vpX + half, ry);
 				prevY = ry;
