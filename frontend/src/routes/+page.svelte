@@ -750,7 +750,8 @@
 	.pv-title {
 		flex: 1;
 		min-width: 0;
-		font-weight: 600;
+		font-family: var(--font-retro);
+		font-size: 12px;
 		color: var(--accent);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -896,6 +897,9 @@
 	}
 	.t-title {
 		display: block;
+		font-family: var(--font-retro);
+		font-size: 11px;
+		color: var(--accent);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
