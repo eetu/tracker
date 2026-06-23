@@ -8,7 +8,13 @@
 import { api, fileUrl, type Track } from './api';
 import { ChiptuneJsPlayer } from './vendor/chiptune3.js';
 
-type ProgressMsg = { pos?: number; order?: number; pattern?: number; row?: number };
+type ProgressMsg = {
+	pos?: number;
+	order?: number;
+	pattern?: number;
+	row?: number;
+	vu?: number[];
+};
 
 /** Per-pattern data from the (patched) worklet: each row is one formatted
  *  cell-string per channel, e.g. "C-4 01 v64 A04". */
@@ -78,6 +84,7 @@ export const playback = $state({
 	order: 0,
 	pattern: 0,
 	row: 0,
+	vu: [] as number[],
 	song: null as Song | null,
 	samples: [] as string[],
 	instruments: [] as string[],
@@ -109,6 +116,7 @@ function ensurePlayer(): Promise<void> {
 		playback.order = d.order ?? 0;
 		playback.pattern = d.pattern ?? 0;
 		playback.row = d.row ?? 0;
+		playback.vu = d.vu ?? [];
 	});
 	player.onMetadata((meta: Meta) => {
 		player.setRepeatCount(playback.repeat ? -1 : 0);

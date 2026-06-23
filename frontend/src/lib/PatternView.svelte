@@ -5,6 +5,7 @@
 
 	const pattern = $derived(playback.song?.patterns?.[playback.pattern] ?? null);
 	const channels = $derived(playback.song?.channels ?? []);
+	const vu = $derived(playback.vu);
 
 	function hex2(n: number): string {
 		return n.toString(16).toUpperCase().padStart(2, '0');
@@ -27,7 +28,10 @@
 		<div class="phead">
 			<span class="rownum">··</span>
 			{#each channels as ch, i (i)}
-				<span class="cell head">{ch || `ch ${i + 1}`}</span>
+				<span class="cell head">
+					<span class="chname">{ch || `ch ${i + 1}`}</span>
+					<span class="vu"><span class="vu-fill" style:width="{(vu[i] ?? 0) * 100}%"></span></span>
+				</span>
 			{/each}
 		</div>
 		{#each pattern.rows as cells, r (r)}
@@ -52,8 +56,8 @@
 		background: #0a0a14;
 		color: #aeb6c2;
 		font-family: var(--font-mono-retro);
-		font-size: 17px;
-		line-height: 1.3;
+		font-size: 16px;
+		line-height: 1.2;
 		white-space: nowrap;
 		-webkit-overflow-scrolling: touch;
 	}
@@ -95,8 +99,27 @@
 		letter-spacing: 0.02em;
 	}
 	.cell.head {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		justify-content: center;
+		overflow: hidden;
+	}
+	.chname {
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+	/* ProTracker-style per-channel VU bar under each channel name. */
+	.vu {
+		height: 4px;
+		background: #1b1b2a;
+		overflow: hidden;
+	}
+	.vu-fill {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+		transition: width 0.08s linear;
 	}
 	.pv-empty {
 		display: grid;

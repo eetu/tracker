@@ -1,7 +1,5 @@
 <script lang="ts">
 	import '@fontsource-variable/inter';
-	import '@fontsource/press-start-2p'; // retro display (brand, FT2 titles)
-	import '@fontsource/vt323'; // retro monospace (pattern grid, readouts)
 
 	import type { Snippet } from 'svelte';
 
@@ -11,6 +9,14 @@
 {@render children()}
 
 <style>
+	/* Authentic Amiga system font (TopazPlus a1200, 8×16 bitmap) for the retro
+	   surfaces — self-hosted, GPL Font Exception. github.com/rewtnull/amigafonts */
+	@font-face {
+		font-family: 'TopazPlus';
+		src: url('/fonts/TopazPlus_a1200_v1.0.ttf') format('truetype');
+		font-display: swap;
+	}
+
 	:global(:root) {
 		/* Provisional palette — the pixel-perfect FastTracker 2 chrome (DOS
 		   palette, beveled panels) lands with the player surface in a later
@@ -23,9 +29,9 @@
 		--muted: #8b94a3;
 		--accent: #f0a02a;
 		--accent-dim: #7a5414;
-		/* retro faces for the player surface (self-hosted, OFL) */
-		--font-retro: 'Press Start 2P', ui-monospace, monospace;
-		--font-mono-retro: 'VT323', ui-monospace, monospace;
+		/* retro face for the player surface (Amiga Topaz; native size 16px). */
+		--font-retro: 'TopazPlus', ui-monospace, monospace;
+		--font-mono-retro: 'TopazPlus', ui-monospace, monospace;
 		font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
 	}
 

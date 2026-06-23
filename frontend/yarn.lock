@@ -256,20 +256,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource/press-start-2p@npm:^5.2.7":
-  version: 5.2.7
-  resolution: "@fontsource/press-start-2p@npm:5.2.7"
-  checksum: 10/4eed1e743f718fc6ebea3f72ca01be55d0ed3e28d68f29a24c920500dd45a9b7b4add3a04ca5315d0e039a678a09c570b30bca962c271ab4482f3869e50216d2
-  languageName: node
-  linkType: hard
-
-"@fontsource/vt323@npm:^5.2.7":
-  version: 5.2.7
-  resolution: "@fontsource/vt323@npm:5.2.7"
-  checksum: 10/442d591baed483a102ae4557042ddb423c189f61dd8638adcaa0c4f517aadf8bc3a03b55ea132762a170c9118aa6b9b986c960728b1687c7e56eb7e1e7910dfb
-  languageName: node
-  linkType: hard
-
 "@humanfs/core@npm:^0.19.2":
   version: 0.19.2
   resolution: "@humanfs/core@npm:0.19.2"
@@ -2193,8 +2179,6 @@ __metadata:
   dependencies:
     "@anarkisti/eslint-config": "npm:^1.0.0"
     "@fontsource-variable/inter": "npm:^5.2.8"
-    "@fontsource/press-start-2p": "npm:^5.2.7"
-    "@fontsource/vt323": "npm:^5.2.7"
     "@lucide/svelte": "npm:^1.21.0"
     "@sveltejs/adapter-static": "npm:^3.0.10"
     "@sveltejs/kit": "npm:^2.57.0"

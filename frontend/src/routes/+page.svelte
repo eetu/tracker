@@ -582,7 +582,7 @@
 	}
 	.brand {
 		font-family: var(--font-retro);
-		font-size: 13px;
+		font-size: 16px;
 		color: var(--accent);
 		text-transform: lowercase;
 	}
@@ -843,7 +843,7 @@
 		flex: 1;
 		min-width: 0;
 		font-family: var(--font-retro);
-		font-size: 12px;
+		font-size: 16px;
 		color: var(--accent);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -890,7 +890,7 @@
 		overflow: auto;
 		padding: 8px 12px;
 		font-family: var(--font-mono-retro);
-		font-size: 17px;
+		font-size: 16px;
 		-webkit-overflow-scrolling: touch;
 	}
 	.samples h4 {

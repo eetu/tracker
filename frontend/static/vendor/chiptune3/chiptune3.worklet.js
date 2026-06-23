@@ -77,26 +77,25 @@ class MPT extends AudioWorkletProcessor {
 		// post progress
 		// 	openmpt_module_get_current_order
 
-		let msg = {
-			cmd: 'pos',
-			pos: libopenmpt._openmpt_module_get_position_seconds(this.modulePtr),
-			// pos in song
-			order: libopenmpt._openmpt_module_get_current_order(this.modulePtr),
-			pattern: libopenmpt._openmpt_module_get_current_pattern(this.modulePtr),
-			row: libopenmpt._openmpt_module_get_current_row(this.modulePtr),
-			// channel volumes
-			//chVol: [], // ch0Left, ch0Right, ch1Left, ...
-		}
-		/*
-		for (let i = 0; i < this.channels; i++) {
-			msg.chVol.push( {
-				left: libopenmpt._openmpt_module_get_current_channel_vu_left(this.modulePtr, i),
-				right: libopenmpt._openmpt_module_get_current_channel_vu_right(this.modulePtr, i),
+		// PATCH (tracker): throttle progress to ~30/s (was every render quantum,
+		// ~375/s) and attach per-channel VU (mono, 0..1) for the pattern meters.
+		const posEvery = this.posEvery || (this.posEvery = Math.max(1, Math.round(sampleRate / 128 / 30)))
+		this.posCounter = (this.posCounter || 0) + 1
+		if (this.posCounter % posEvery === 0) {
+			const n = libopenmpt._openmpt_module_get_num_channels(this.modulePtr)
+			const vu = new Array(n)
+			for (let i = 0; i < n; i++) {
+				vu[i] = libopenmpt._openmpt_module_get_current_channel_vu_mono(this.modulePtr, i)
+			}
+			this.port.postMessage({
+				cmd: 'pos',
+				pos: libopenmpt._openmpt_module_get_position_seconds(this.modulePtr),
+				order: libopenmpt._openmpt_module_get_current_order(this.modulePtr),
+				pattern: libopenmpt._openmpt_module_get_current_pattern(this.modulePtr),
+				row: libopenmpt._openmpt_module_get_current_row(this.modulePtr),
+				vu,
 			})
 		}
-		*/
-
-		this.port.postMessage( msg )
 
 		return true // def. needed for Chrome
 	}

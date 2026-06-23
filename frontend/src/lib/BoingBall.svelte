@@ -19,14 +19,15 @@
 
 		let w = 0;
 		let h = 0;
-		const dpr = Math.min(window.devicePixelRatio || 1, 2);
+		// Render into a small buffer and let CSS upscale it nearest-neighbour, so
+		// everything comes out chunky/pixelated (authentic Amiga look).
+		const PIXEL = 4;
 		const ro = new ResizeObserver(() => {
 			const r = el.getBoundingClientRect();
-			w = r.width;
-			h = r.height;
-			el.width = Math.max(1, Math.round(w * dpr));
-			el.height = Math.max(1, Math.round(h * dpr));
-			g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+			w = Math.max(1, Math.round(r.width / PIXEL));
+			h = Math.max(1, Math.round(r.height / PIXEL));
+			el.width = w;
+			el.height = h;
 		});
 		ro.observe(el);
 
@@ -42,7 +43,7 @@
 		const SPIN_RATE = 1.7; // rad/sec
 
 		function radius() {
-			return Math.max(28, Math.min(110, Math.min(w, h) * 0.18));
+			return Math.max(10, Math.min(60, Math.min(w, h) * 0.2));
 		}
 
 		function grid() {
@@ -193,5 +194,6 @@
 		display: block;
 		width: 100%;
 		height: 100%;
+		image-rendering: pixelated;
 	}
 </style>
