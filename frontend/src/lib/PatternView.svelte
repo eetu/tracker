@@ -1,73 +1,102 @@
 <script lang="ts">
 	import { playback } from '$lib/player.svelte';
 
-	let scroller = $state<HTMLDivElement | null>(null);
+	// Fixed-metrics tracker layout (px). Topaz is 8×16, so 8px/char.
+	const ROW_H = 18;
+	const ROWNUM_W = 30;
+	const CELL_W = 130;
+	const BAR_W = 10;
+	const VU_MAX = ROW_H * 6; // tallest VU bar
+
+	let vpH = $state(0); // viewport height, for centering the current row
 
 	const pattern = $derived(playback.song?.patterns?.[playback.pattern] ?? null);
 	const channels = $derived(playback.song?.channels ?? []);
 	const vu = $derived(playback.vu);
+	const contentW = $derived(ROWNUM_W + channels.length * CELL_W);
+
+	// Translate the rows so the current row sits on the fixed centerline; the
+	// pattern moves under the line "like a stick in the river".
+	const translateY = $derived(vpH / 2 - (playback.row + 0.5) * ROW_H);
 
 	function hex2(n: number): string {
 		return n.toString(16).toUpperCase().padStart(2, '0');
 	}
-
-	// Keep the playing row centred as it advances. Direct scrollTop (not smooth)
-	// so it tracks fast tempos without lagging behind.
-	$effect(() => {
-		const r = playback.row;
-		const el = scroller;
-		if (!el) return;
-		const rows = el.querySelectorAll<HTMLElement>('.prow');
-		const target = rows[r];
-		if (target) el.scrollTop = target.offsetTop - el.clientHeight / 2 + target.offsetHeight / 2;
-	});
+	function colX(i: number): number {
+		return ROWNUM_W + i * CELL_W + (CELL_W - BAR_W) / 2;
+	}
 </script>
 
 {#if pattern}
-	<div class="pv" bind:this={scroller}>
-		<div class="phead">
-			<span class="rownum">··</span>
-			{#each channels as ch, i (i)}
-				<span class="cell head">
-					<span class="chname">{ch || `ch ${i + 1}`}</span>
-					<span class="vu"><span class="vu-fill" style:width="{(vu[i] ?? 0) * 100}%"></span></span>
-				</span>
-			{/each}
-		</div>
-		{#each pattern.rows as cells, r (r)}
-			<div class="prow" class:active={r === playback.row} class:beat={r % 4 === 0}>
-				<span class="rownum">{hex2(r)}</span>
-				{#each cells as cell, c (c)}
-					<span class="cell">{cell}</span>
+	<div class="pv" bind:clientHeight={vpH}>
+		<div class="content" style:width="{contentW}px">
+			<div class="centerline" style:height="{ROW_H}px"></div>
+			<div class="rows" style:transform="translateY({translateY}px)">
+				{#each pattern.rows as cells, r (r)}
+					<div
+						class="prow"
+						class:beat={r % 4 === 0}
+						class:active={r === playback.row}
+						style:height="{ROW_H}px"
+					>
+						<span class="rownum">{hex2(r)}</span>
+						{#each cells as cell, c (c)}<span class="cell">{cell}</span>{/each}
+					</div>
 				{/each}
 			</div>
-		{/each}
+			<!-- Per-channel VU bars rising from the centerline (ProTracker style). -->
+			<div class="vu-overlay">
+				{#each channels as _ch, i (i)}
+					<div
+						class="vubar"
+						style:left="{colX(i)}px"
+						style:width="{BAR_W}px"
+						style:height="{Math.min(1, vu[i] ?? 0) * VU_MAX}px"
+					></div>
+				{/each}
+			</div>
+		</div>
 	</div>
 {:else}
 	<div class="pv-empty">{playback.current ? 'decoding pattern…' : 'nothing playing'}</div>
 {/if}
 
 <style>
-	/* FastTracker 2 / DOS pattern editor look (provisional palette; the pixel
-	   font + full FT2 chrome come with the design pass). */
 	.pv {
 		height: 100%;
-		overflow: auto;
+		overflow-x: auto;
+		overflow-y: hidden;
+		position: relative;
 		background: #0a0a14;
 		color: #aeb6c2;
 		font-family: var(--font-mono-retro);
 		font-size: 16px;
-		line-height: 1.2;
+		line-height: 1;
 		white-space: nowrap;
 		-webkit-overflow-scrolling: touch;
 	}
-	.phead {
-		position: sticky;
+	.content {
+		position: relative;
+		height: 100%;
+		min-width: 100%;
+	}
+	/* The fixed current-row line. */
+	.centerline {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		background: color-mix(in srgb, var(--accent) 22%, #10101c);
+		box-shadow:
+			0 -1px 0 #2a2a3a,
+			0 1px 0 #2a2a3a;
+		z-index: 0;
+	}
+	.rows {
+		position: absolute;
 		top: 0;
-		display: flex;
-		background: #16161f;
-		color: var(--accent);
-		border-bottom: 1px solid #2a2a3a;
+		left: 0;
 		z-index: 1;
 	}
 	.prow {
@@ -75,10 +104,9 @@
 		align-items: center;
 	}
 	.prow.beat {
-		background: #10101c;
+		color: #c7cedb;
 	}
 	.prow.active {
-		background: color-mix(in srgb, var(--accent) 28%, #10101c);
 		color: #fff;
 	}
 	.rownum {
@@ -87,39 +115,27 @@
 		text-align: right;
 		padding: 0 6px;
 		color: #66708a;
-		position: sticky;
-		left: 0;
-		background: inherit;
 	}
 	.cell {
 		flex: 0 0 auto;
-		min-width: 112px;
+		width: 130px;
 		padding: 0 8px;
 		border-left: 1px solid #1b1b2a;
-		letter-spacing: 0.02em;
-	}
-	.cell.head {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		justify-content: center;
 		overflow: hidden;
 	}
-	.chname {
-		overflow: hidden;
-		text-overflow: ellipsis;
+	.vu-overlay {
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		pointer-events: none;
 	}
-	/* ProTracker-style per-channel VU bar under each channel name. */
-	.vu {
-		height: 4px;
-		background: #1b1b2a;
-		overflow: hidden;
-	}
-	.vu-fill {
-		display: block;
-		height: 100%;
-		background: var(--accent);
-		transition: width 0.08s linear;
+	.vubar {
+		position: absolute;
+		bottom: 50%;
+		background: linear-gradient(to top, #2ecc40, #ffdc00 55%, #ff4136);
+		background-size: 100% 108px;
+		background-position: bottom;
+		transition: height 0.05s linear;
 	}
 	.pv-empty {
 		display: grid;

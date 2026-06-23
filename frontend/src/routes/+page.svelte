@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		AlignCenter,
 		AudioLines,
 		Pause,
 		Pencil,
@@ -17,6 +18,7 @@
 	import { api, ApiError, fileUrl, type StatusResponse, type Track } from '$lib/api';
 	import BoingBall from '$lib/BoingBall.svelte';
 	import PatternView from '$lib/PatternView.svelte';
+	import PatternViewScroll from '$lib/PatternViewScroll.svelte';
 	import {
 		parseModule,
 		playback,
@@ -35,6 +37,19 @@
 
 	let showPattern = $state(false);
 	let pvTab = $state<'pattern' | 'samples'>('pattern');
+	// Pattern view style: 'locked' = fixed centerline + vertical VU; 'scroll' =
+	// free-scrolling rows + header VU. Persisted across sessions.
+	let patternMode = $state<'locked' | 'scroll'>(
+		(typeof localStorage !== 'undefined' && localStorage.getItem('tracker:patternMode')) ===
+			'scroll'
+			? 'scroll'
+			: 'locked'
+	);
+	function togglePatternMode() {
+		patternMode = patternMode === 'locked' ? 'scroll' : 'locked';
+		if (typeof localStorage !== 'undefined')
+			localStorage.setItem('tracker:patternMode', patternMode);
+	}
 
 	function fmtTime(sec: number): string {
 		if (!sec || !isFinite(sec)) return '0:00';
@@ -458,6 +473,15 @@
 				<button class:on={pvTab === 'samples'} onclick={() => (pvTab = 'samples')}>samples</button>
 			</div>
 			{#if pvTab === 'pattern'}
+				<button
+					class="t-btn"
+					class:on={patternMode === 'locked'}
+					onclick={togglePatternMode}
+					aria-label="toggle pattern scroll mode"
+					title={patternMode === 'locked' ? 'fixed centerline' : 'free scroll'}
+				>
+					<AlignCenter size={16} />
+				</button>
 				<span class="pv-pos">
 					ord <span class="num">{playback.order}</span> · pat
 					<span class="num">{playback.pattern}</span> · row
@@ -475,7 +499,9 @@
 		<div class="pv-wrap">
 			{#if pvTab === 'pattern'}
 				<div class="scope-strip"><Scope /></div>
-				<div class="pfill"><PatternView /></div>
+				<div class="pfill">
+					{#if patternMode === 'locked'}<PatternView />{:else}<PatternViewScroll />{/if}
+				</div>
 			{:else}
 				<div class="samples">
 					{#if (playback.song?.instruments?.length ?? 0) > 0}
