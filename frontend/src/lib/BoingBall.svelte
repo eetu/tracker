@@ -95,19 +95,18 @@
 				main.moveTo(x, hY);
 				main.lineTo(vpX + (x - vpX) * spread, H);
 			}
-			// Rows: perspective-spaced (far apart near you, bunching toward the
-			// horizon), each spanning the trapezoid width at its depth.
-			const N = 1.6;
-			let prevY = Infinity;
-			for (let d = 0; d < 64; d++) {
-				const ry = hY + (floorH * N) / (N + d);
-				if (ry <= hY + 1) break;
-				if (prevY - ry < 4) break;
-				const s = (H - ry) / (H - hY); // 1 at the back, 0 near the viewer
+			// Rows: a fixed count, power-law spaced so they bunch toward the horizon
+			// AND the farthest lands exactly on it (no wide gap at the wall/floor
+			// corner). Each spans the trapezoid width at its depth.
+			const ROWS = 9;
+			const POW = 2.3;
+			for (let i = 0; i <= ROWS; i++) {
+				const f = 1 - i / ROWS; // 1 at the near edge, 0 at the horizon
+				const ry = hY + floorH * Math.pow(f, POW);
+				const s = (H - ry) / (H - hY); // 0 near the viewer, 1 at the horizon
 				const half = backHalf + (nearHalf - backHalf) * (1 - s);
 				main.moveTo(vpX - half, ry);
 				main.lineTo(vpX + half, ry);
-				prevY = ry;
 			}
 			main.stroke();
 		}
