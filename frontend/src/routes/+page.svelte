@@ -485,11 +485,6 @@
 				>
 					<AlignCenter size={16} />
 				</button>
-				<span class="pv-pos">
-					ord <span class="num">{playback.order}</span> · pat
-					<span class="num">{playback.pattern}</span> · row
-					<span class="num">{playback.row}</span>
-				</span>
 			{/if}
 			<button
 				class="pv-close"
@@ -882,13 +877,6 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.pv-pos {
-		margin-left: auto;
-		color: var(--muted);
-		font-family: var(--font-mono-retro);
-		font-size: 16px;
-		font-variant-numeric: tabular-nums;
-	}
 	.pv-close {
 		flex: 0 0 auto;
 		display: inline-flex;
@@ -1119,8 +1107,7 @@
 			padding: 8px 0;
 		}
 		/* Order/pattern/row teaser doesn't fit next to the title on a phone. */
-		.t-pos,
-		.pv-pos {
+		.t-pos {
 			display: none;
 		}
 		.t-controls {
