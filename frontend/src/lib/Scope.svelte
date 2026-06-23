@@ -2,7 +2,7 @@
 	// Master output oscilloscope — draws the playback waveform from the player's
 	// AnalyserNode. (A first scope; per-channel FT2 scopes would need the worklet
 	// to expose per-channel PCM.)
-	import { readScope, SCOPE_SIZE } from '$lib/player.svelte';
+	import { playback, readScope, SCOPE_SIZE } from '$lib/player.svelte';
 
 	let canvas: HTMLCanvasElement | null = $state(null);
 
@@ -40,17 +40,22 @@
 				g2.lineTo(w, mid);
 				g2.stroke();
 
-				if (readScope(buf)) {
+				// Only trace the waveform while actually playing (paused/stopped =
+				// silence = flat); cap the point count so wide screens don't draw
+				// thousands of segments per frame.
+				if (playback.playing && !playback.paused && readScope(buf)) {
 					g2.strokeStyle = '#f0a02a'; // halo accent
 					g2.lineWidth = 1.5;
 					g2.beginPath();
-					// Draw one screen-width slice of the waveform.
-					const step = buf.length / w;
-					for (let px = 0; px < w; px++) {
-						const v = buf[Math.floor(px * step)] / 128 - 1; // -1..1
+					const points = Math.min(Math.floor(w), 512);
+					const sStep = buf.length / points;
+					const xStep = w / points;
+					for (let i = 0; i < points; i++) {
+						const v = buf[Math.floor(i * sStep)] / 128 - 1; // -1..1
 						const y = mid - v * (mid * 0.9);
-						if (px === 0) g2.moveTo(px, y);
-						else g2.lineTo(px, y);
+						const x = i * xStep;
+						if (i === 0) g2.moveTo(x, y);
+						else g2.lineTo(x, y);
 					}
 					g2.stroke();
 				}

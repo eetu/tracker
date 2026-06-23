@@ -59,6 +59,8 @@
 		let t0 = 0;
 		let lastT = 0;
 		const tilt = (16 * Math.PI) / 180;
+		const cosT = Math.cos(tilt); // precomputed (constant) tilt rotation
+		const sinT = Math.sin(tilt);
 		const H_SPEED = 0.14;
 		const V_SPEED = 2.3;
 		const SPIN_RATE = 1.7;
@@ -121,18 +123,17 @@
 			gg.stroke();
 		}
 
-		function project(theta: number, phi: number) {
+		// cs/sn = cos/sin(spin) for this frame (computed once, not per vertex).
+		function project(theta: number, phi: number, cs: number, sn: number) {
 			let px = Math.sin(theta) * Math.cos(phi);
 			const py = Math.cos(theta);
 			let pz = Math.sin(theta) * Math.sin(phi);
-			const cs = Math.cos(spin);
-			const sn = Math.sin(spin);
 			const x2 = px * cs + pz * sn;
 			pz = -px * sn + pz * cs;
 			px = x2;
 			return {
-				x: px * Math.cos(tilt) - py * Math.sin(tilt),
-				y: px * Math.sin(tilt) + py * Math.cos(tilt),
+				x: px * cosT - py * sinT,
+				y: px * sinT + py * cosT,
 				z: pz
 			};
 		}
@@ -149,6 +150,8 @@
 
 			const LAT = 8;
 			const LON = 16;
+			const cs = Math.cos(spin); // once per frame, not per vertex
+			const sn = Math.sin(spin);
 			for (let i = 0; i < LAT; i++) {
 				for (let j = 0; j < LON; j++) {
 					if ((i + j) % 2 === 0) continue;
@@ -156,10 +159,10 @@
 					const t1 = (Math.PI * (i + 1)) / LAT;
 					const p0 = (2 * Math.PI * j) / LON;
 					const p1 = (2 * Math.PI * (j + 1)) / LON;
-					const a = project(t0a, p0);
-					const b = project(t1, p0);
-					const c = project(t1, p1);
-					const d = project(t0a, p1);
+					const a = project(t0a, p0, cs, sn);
+					const b = project(t1, p0, cs, sn);
+					const c = project(t1, p1, cs, sn);
+					const d = project(t0a, p1, cs, sn);
 					if ((a.z + b.z + c.z + d.z) / 4 <= 0) continue;
 					og.beginPath();
 					og.moveTo(cx + a.x * r, cy + a.y * r);
