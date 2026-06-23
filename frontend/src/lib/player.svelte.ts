@@ -54,6 +54,8 @@ let player: any = null;
 let ready: Promise<void> | null = null;
 let analyser: AnalyserNode | null = null;
 let parseId = 0;
+let wakeLock: WakeLockSentinel | null = null;
+let platformWired = false;
 // Plain (non-reactive) registry of in-flight parse resolvers — not UI state.
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const pendingParse = new Map<number, (m: ParsedMeta | null) => void>();
@@ -125,6 +127,7 @@ function ensurePlayer(): Promise<void> {
 		playback.samples = meta?.song?.samples ?? [];
 		playback.instruments = meta?.song?.instruments ?? [];
 		if (playback.current) void saveMeta(playback.current, meta);
+		syncNowPlaying(); // title is known now → refresh OS Now Playing
 	});
 	player.onEnded(() => {
 		// (With repeat on, the module loops and onEnded never fires.) Auto-advance
@@ -133,7 +136,10 @@ function ensurePlayer(): Promise<void> {
 			playback.queueIndex >= 0 &&
 			(playback.shuffle ? queue.length > 1 : playback.queueIndex + 1 < queue.length);
 		if (canNext) playNext();
-		else playback.playing = false;
+		else {
+			playback.playing = false;
+			syncNowPlaying();
+		}
 	});
 	player.onError((e: { type?: string }) => {
 		playback.error = e?.type ?? 'playback error';
@@ -145,7 +151,88 @@ function ensurePlayer(): Promise<void> {
 			resolve(d.meta ?? null);
 		}
 	});
+	wirePlatformIntegration();
 	return ready as Promise<void>;
+}
+
+// --- OS / platform integration (Media Session, wake lock, foreground resume) ---
+//
+// iOS keeps Web Audio alive only while in the foreground (a long-standing
+// WebKit limitation — pure AudioContext output is suspended when backgrounded
+// or the screen locks; only HTMLMediaElement audio survives). So this is a
+// *foreground* convenience: OS transport buttons + Now Playing metadata
+// (lock-screen controls on Android/desktop), a screen wake lock so auto-lock
+// doesn't cut a listen short, and a resume when we return to the foreground.
+
+/** Reflect current track + transport state to the OS, and hold a wake lock
+ *  while actually playing. */
+function syncNowPlaying() {
+	const playing = playback.playing && !playback.paused;
+	if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+		const t = playback.current;
+		navigator.mediaSession.metadata = t
+			? new MediaMetadata({
+					title: t.title || t.filename,
+					artist: t.artist || t.group || 'tracker',
+					album: t.group || '',
+					artwork: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }]
+				})
+			: null;
+		navigator.mediaSession.playbackState = t ? (playing ? 'playing' : 'paused') : 'none';
+	}
+	if (playing) void acquireWakeLock();
+	else void releaseWakeLock();
+}
+
+async function acquireWakeLock() {
+	try {
+		if (
+			typeof navigator !== 'undefined' &&
+			'wakeLock' in navigator &&
+			document.visibilityState === 'visible' &&
+			!wakeLock
+		) {
+			wakeLock = await navigator.wakeLock.request('screen');
+			wakeLock.addEventListener('release', () => (wakeLock = null));
+		}
+	} catch {
+		/* denied / unsupported — non-fatal */
+	}
+}
+
+async function releaseWakeLock() {
+	try {
+		await wakeLock?.release();
+	} catch {
+		/* already gone */
+	}
+	wakeLock = null;
+}
+
+/** One-time wiring: resume the suspended/interrupted context on return to the
+ *  foreground, re-arm the wake lock, and route OS transport buttons. */
+function wirePlatformIntegration() {
+	if (platformWired || typeof document === 'undefined') return;
+	platformWired = true;
+
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState !== 'visible') return;
+		if (playback.playing && !playback.paused) {
+			// iOS suspends Web Audio in the background — resume on return.
+			if (player?.context?.state !== 'running') void player.context.resume().catch(() => {});
+			void acquireWakeLock(); // the OS drops the lock when hidden
+		}
+	});
+
+	if ('mediaSession' in navigator) {
+		const ms = navigator.mediaSession;
+		ms.setActionHandler('play', () => transportToggle());
+		ms.setActionHandler('pause', () => {
+			if (playback.playing && !playback.paused) togglePause();
+		});
+		ms.setActionHandler('previoustrack', () => playPrev());
+		ms.setActionHandler('nexttrack', () => playNext());
+	}
 }
 
 /** Load a track and play it from the start (audible unless muted). */
@@ -173,6 +260,7 @@ export async function playTrack(track: Track) {
 	}
 	player.setVol(playback.muted ? 0 : 1);
 	player.load(fileUrl(track.hash));
+	syncNowPlaying();
 }
 
 /** Play `track` as part of an ordered `list` (enables next/prev + auto-advance). */
@@ -222,6 +310,7 @@ export function togglePause() {
 	if (!player || !playback.current || !playback.playing) return;
 	player.togglePause();
 	playback.paused = !playback.paused;
+	syncNowPlaying();
 }
 
 /** Halt playback and reset to the start, but keep the module loaded and the
@@ -234,6 +323,7 @@ export function stop() {
 	playback.position = 0;
 	playback.row = 0;
 	playback.order = 0;
+	syncNowPlaying();
 }
 
 export function setMuted(m: boolean) {
