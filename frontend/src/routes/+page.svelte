@@ -1,6 +1,5 @@
 <script lang="ts">
 	import {
-		AlignCenter,
 		AudioLines,
 		Monitor,
 		Moon,
@@ -8,6 +7,7 @@
 		Pencil,
 		Play,
 		Repeat,
+		ScanLine,
 		Shuffle,
 		SkipBack,
 		SkipForward,
@@ -190,6 +190,16 @@
 	}
 
 	onMount(init);
+
+	// Lock body scroll while the full-screen player overlay is open, so the
+	// page's own (now-pointless) scrollbar for the list behind it disappears.
+	$effect(() => {
+		const open = !!playback.current && showPattern;
+		document.body.style.overflow = open ? 'hidden' : '';
+		return () => {
+			document.body.style.overflow = '';
+		};
+	});
 
 	const scanning = $derived((status?.scanning ?? false) || rescanning);
 	const scanPct = $derived.by(() => {
@@ -515,7 +525,7 @@
 				style:visibility={pvTab === 'pattern' ? 'visible' : 'hidden'}
 				disabled={pvTab !== 'pattern'}
 			>
-				<AlignCenter size={16} />
+				<ScanLine size={16} />
 			</button>
 			<button
 				class="pv-close"
@@ -911,6 +921,11 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+	}
+	/* The pattern-mode toggle is an icon button in the bar — drop the wide
+	   transport min-width so it matches the tabs/close button footprint. */
+	.pv-bar .t-btn {
+		min-width: 0;
 	}
 	/* Reserve a fixed 2-digit slot per number so ord/pat/row don't shift the
 	   layout as they tick between 1 and 2 digits (tabular-nums alone can't —
