@@ -81,20 +81,18 @@
 			main.moveTo(0, hY);
 			main.lineTo(W, hY); // horizon
 
-			// Floor rows — foreshortened but limited (so they don't pile into a
-			// band), each gap shrinking toward the horizon.
-			const ys: number[] = [];
-			let y = H;
-			let gap = floorH * 0.42;
-			for (let k = 0; k < 12; k++) {
-				ys.push(y);
-				y -= gap;
-				gap *= 0.7;
-				if (y <= hY + floorH * 0.12 || gap < 4) break;
-			}
-			for (const ry of ys) {
+			// Floor rows — proper perspective spacing: far apart near the viewer,
+			// bunching toward the horizon (y = hY + floorH·N/(N+d)). Stop once rows
+			// would be within a few px so they don't merge into a band.
+			const N = 1.6;
+			let prevY = Infinity;
+			for (let d = 0; d < 64; d++) {
+				const ry = hY + (floorH * N) / (N + d);
+				if (ry <= hY + 2) break;
+				if (prevY - ry < 4) break;
 				main.moveTo(0, ry);
 				main.lineTo(W, ry);
+				prevY = ry;
 			}
 
 			// Floor depth lines — converge to the vanishing point on the horizon
