@@ -3,7 +3,28 @@
 
 	import type { Snippet } from 'svelte';
 
+	import { theme } from '$lib/theme.svelte';
+
 	let { children }: { children: Snippet } = $props();
+
+	// Resolve the chosen mode to an effective 'light'/'dark' and apply it as
+	// data-theme on <html>. Only `auto` follows the system; it then re-resolves
+	// live when the OS appearance flips.
+	$effect(() => {
+		const mode = theme.mode;
+		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		const apply = () => {
+			const eff = mode === 'auto' ? (mq.matches ? 'dark' : 'light') : mode;
+			document.documentElement.dataset.theme = eff;
+			const meta = document.querySelector('meta[name="theme-color"]');
+			if (meta) meta.setAttribute('content', eff === 'light' ? '#f4f5f7' : '#0d0f12');
+		};
+		apply();
+		if (mode === 'auto') {
+			mq.addEventListener('change', apply);
+			return () => mq.removeEventListener('change', apply);
+		}
+	});
 </script>
 
 {@render children()}
@@ -33,6 +54,20 @@
 		--font-retro: 'TopazPlus', ui-monospace, monospace;
 		--font-mono-retro: 'TopazPlus', ui-monospace, monospace;
 		font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
+	}
+
+	/* Light theme — overrides only the token-driven chrome (header, library
+	   list, footer, panels). The full-screen player surface (pattern grid +
+	   scope) keeps its dark FT2 palette by design, like a media viewer. */
+	:global(:root[data-theme='light']) {
+		--bg: #f4f5f7;
+		--panel: #ffffff;
+		--panel-hi: #eceef1;
+		--border: #d3d8e0;
+		--text: #1b1e24;
+		--muted: #5c6677;
+		--accent: #b06f0a;
+		--accent-dim: #fbe7c2;
 	}
 
 	:global(*) {

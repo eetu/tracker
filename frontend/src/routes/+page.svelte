@@ -2,6 +2,8 @@
 	import {
 		AlignCenter,
 		AudioLines,
+		Monitor,
+		Moon,
 		Pause,
 		Pencil,
 		Play,
@@ -9,6 +11,7 @@
 		Shuffle,
 		SkipBack,
 		SkipForward,
+		Sun,
 		Volume2,
 		VolumeX,
 		X
@@ -33,6 +36,7 @@
 		transportToggle
 	} from '$lib/player.svelte';
 	import Scope from '$lib/Scope.svelte';
+	import { cycleTheme, theme } from '$lib/theme.svelte';
 
 	type GroupKey = 'group' | 'artist' | 'ext';
 
@@ -342,6 +346,16 @@
 
 <header class="bar">
 	<div class="brand">tracker</div>
+	<button
+		class="theme"
+		onclick={cycleTheme}
+		title={`theme: ${theme.mode} (click to change)`}
+		aria-label={`theme: ${theme.mode}`}
+	>
+		{#if theme.mode === 'dark'}<Moon size={16} />{:else if theme.mode === 'light'}<Sun
+				size={16}
+			/>{:else}<Monitor size={16} />{/if}
+	</button>
 	<input
 		class="filter"
 		type="search"
@@ -632,6 +646,12 @@
 		font-size: 16px;
 		color: var(--accent);
 		text-transform: lowercase;
+	}
+	.theme {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 5px;
 	}
 	.filter {
 		flex: 1;
