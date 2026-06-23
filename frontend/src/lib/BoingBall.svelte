@@ -58,20 +58,41 @@
 			return Math.max(10, Math.min(60, Math.min(oW, oH) * 0.2));
 		}
 
-		// Crisp grid (full resolution), fixed square cells that tile.
+		// Authentic Boing scene: a flat back-wall grid up top and a one-point
+		// perspective floor below the horizon. Crisp, full resolution, grey bg.
 		function grid() {
-			main.fillStyle = '#2b2b3a';
+			main.fillStyle = '#a8a8a8';
 			main.fillRect(0, 0, W, H);
 			main.strokeStyle = '#b41eb4';
 			main.lineWidth = 1;
+			const hY = Math.round(H * 0.72); // horizon
+			const floorH = H - hY;
+			const vpX = W / 2; // floor vanishing point (on the horizon)
 			main.beginPath();
+
+			// Wall — square grid from top down to the horizon.
 			for (let gx = 0; gx <= W; gx += GRID) {
 				main.moveTo(gx + 0.5, 0);
-				main.lineTo(gx + 0.5, H);
+				main.lineTo(gx + 0.5, hY);
 			}
-			for (let gy = 0; gy <= H; gy += GRID) {
+			for (let gy = 0; gy <= hY; gy += GRID) {
 				main.moveTo(0, gy + 0.5);
 				main.lineTo(W, gy + 0.5);
+			}
+			main.moveTo(0, hY + 0.5);
+			main.lineTo(W, hY + 0.5); // horizon line
+
+			// Floor — depth lines converging to the vanishing point.
+			for (let xb = vpX % GRID; xb <= W; xb += GRID) {
+				main.moveTo(xb, H);
+				main.lineTo(vpX, hY);
+			}
+			// Floor — rows, foreshortened (closer together toward the horizon).
+			for (let k = 1; k <= 80; k++) {
+				const y = hY + floorH / (1 + k * 0.22);
+				if (y <= hY + 1) break;
+				main.moveTo(0, y);
+				main.lineTo(W, y);
 			}
 			main.stroke();
 		}
@@ -173,22 +194,11 @@
 
 				// Ball layer (low-res offscreen, transparent), then composite up.
 				og.clearRect(0, 0, oW, oH);
-				const lift = (floor - y) / Math.max(1, floor - ceil);
-				og.save();
-				og.globalAlpha = 0.35 * (1 - lift * 0.6);
-				og.fillStyle = '#000';
+				// drop shadow on the wall, offset down-right behind the ball
+				og.fillStyle = 'rgba(30,30,30,0.3)';
 				og.beginPath();
-				og.ellipse(
-					x,
-					floor + r * 0.85,
-					rDraw * (1.1 - lift * 0.3),
-					rDraw * 0.28,
-					0,
-					0,
-					Math.PI * 2
-				);
+				og.arc(x + rDraw * 0.32, y + rDraw * 0.22, rDraw, 0, Math.PI * 2);
 				og.fill();
-				og.restore();
 				ball(x, y, rDraw);
 
 				main.imageSmoothingEnabled = false;
