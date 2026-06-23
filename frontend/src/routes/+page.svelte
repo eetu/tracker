@@ -493,17 +493,19 @@
 				<button class:on={pvTab === 'samples'} onclick={() => (pvTab = 'samples')}>samples</button>
 				<button class:on={pvTab === 'ball'} onclick={() => (pvTab = 'ball')}>ball</button>
 			</div>
-			{#if pvTab === 'pattern'}
-				<button
-					class="t-btn"
-					class:on={patternMode === 'locked'}
-					onclick={togglePatternMode}
-					aria-label="toggle pattern scroll mode"
-					title={patternMode === 'locked' ? 'fixed centerline' : 'free scroll'}
-				>
-					<AlignCenter size={16} />
-				</button>
-			{/if}
+			<!-- Always laid out so the close button never shifts between tabs; only
+			     meaningful on the pattern tab, hidden (space reserved) elsewhere. -->
+			<button
+				class="t-btn"
+				class:on={patternMode === 'locked'}
+				onclick={togglePatternMode}
+				aria-label="toggle pattern scroll mode"
+				title={patternMode === 'locked' ? 'fixed centerline' : 'free scroll'}
+				style:visibility={pvTab === 'pattern' ? 'visible' : 'hidden'}
+				disabled={pvTab !== 'pattern'}
+			>
+				<AlignCenter size={16} />
+			</button>
 			<button
 				class="pv-close"
 				onclick={() => (showPattern = false)}
@@ -1063,6 +1065,8 @@
 	.t-time {
 		flex: 0 0 auto;
 		color: var(--muted);
+		font-size: 16px;
+		font-family: var(--font-mono-retro);
 		font-variant-numeric: tabular-nums;
 	}
 	.t-pos {

@@ -150,6 +150,10 @@ function ensurePlayer(): Promise<void> {
 
 /** Load a track and play it from the start (audible unless muted). */
 export async function playTrack(track: Track) {
+	// Silence the currently-loaded module *before* the (async) fetch of the next
+	// one — otherwise the old song keeps rendering in the worklet until the new
+	// module is created, so you hear a tail of the previous track.
+	if (player) player.stop();
 	playback.error = null;
 	playback.current = track;
 	playback.playing = true;
