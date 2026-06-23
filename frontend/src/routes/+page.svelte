@@ -1,11 +1,31 @@
 <script lang="ts">
-	import { AudioLines, Pause, Pencil, Play, Square, Volume2, VolumeX, X } from '@lucide/svelte';
+	import {
+		AudioLines,
+		Pause,
+		Pencil,
+		Play,
+		SkipBack,
+		SkipForward,
+		Square,
+		Volume2,
+		VolumeX,
+		X
+	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	import { api, ApiError, type StatusResponse, type Track } from '$lib/api';
 	import BoingBall from '$lib/BoingBall.svelte';
 	import PatternView from '$lib/PatternView.svelte';
-	import { playback, playTrack, setMuted, stop, transportToggle } from '$lib/player.svelte';
+	import {
+		playback,
+		playInOrder,
+		playNext,
+		playPrev,
+		seekSeconds,
+		setMuted,
+		stop,
+		transportToggle
+	} from '$lib/player.svelte';
 	import Scope from '$lib/Scope.svelte';
 
 	type GroupKey = 'group' | 'artist' | 'ext';
@@ -22,14 +42,6 @@
 
 	function hex2(n: number): string {
 		return n.toString(16).toUpperCase().padStart(2, '0');
-	}
-
-	// Tapping a track opens the player (pattern) view. A new track starts playing
-	// from the top; the already-loaded track just (re)opens the view without
-	// disturbing playback.
-	function openTrack(t: Track) {
-		if (playback.current?.path !== t.path) void playTrack(t);
-		showPattern = true;
 	}
 
 	let tracks = $state<Track[]>([]);
@@ -148,6 +160,29 @@
 		if (groupBy === 'group') return t.artist ?? '—';
 		if (groupBy === 'artist') return t.group;
 		return t.artist ? `${t.group} · ${t.artist}` : t.group;
+	}
+
+	// The visible order is the play queue, so next/prev/auto-advance follow what
+	// you see (current grouping + filter).
+	const flatTracks = $derived(groups.flatMap(([, items]) => items));
+	const hasPrev = $derived(playback.queueIndex > 0);
+	const hasNext = $derived(
+		playback.queueIndex >= 0 && playback.queueIndex + 1 < playback.queueLength
+	);
+
+	// Tapping a track opens the player (pattern) view. A new track starts playing
+	// from the top (in the visible order); the already-loaded track just reopens
+	// the view without disturbing playback.
+	function openTrack(t: Track) {
+		if (playback.current?.path !== t.path) void playInOrder(flatTracks, t);
+		showPattern = true;
+	}
+
+	function seekClick(e: MouseEvent) {
+		if (!playback.duration) return;
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+		seekSeconds(frac * playback.duration);
 	}
 
 	// ---- inline rename / move ----
@@ -377,37 +412,51 @@
 
 {#if playback.current}
 	<div class="transport">
-		<button
-			class="t-btn"
-			onclick={transportToggle}
-			aria-label={playback.playing && !playback.paused ? 'pause' : 'play'}
-		>
-			{#if playback.playing && !playback.paused}<Pause size={16} />{:else}<Play size={16} />{/if}
+		<button class="seek" onclick={seekClick} aria-label="seek" title="seek">
+			<div
+				class="seek-fill"
+				style:width="{playback.duration ? (playback.position / playback.duration) * 100 : 0}%"
+			></div>
 		</button>
-		<button class="t-btn" onclick={stop} aria-label="stop"><Square size={16} /></button>
-		<button
-			class="t-btn"
-			onclick={() => setMuted(!playback.muted)}
-			aria-label={playback.muted ? 'unmute' : 'mute'}
-			title={playback.muted ? 'unmute' : 'mute'}
-		>
-			{#if playback.muted}<VolumeX size={16} />{:else}<Volume2 size={16} />{/if}
-		</button>
-		<button class="t-info" onclick={() => (showPattern = true)} title="open player view">
-			<span class="t-title">{playback.current.title || playback.current.filename}</span>
-			<span class="t-meta">
-				{playback.current.group}{playback.current.artist ? ` · ${playback.current.artist}` : ''}
-				{#if playback.error}· <span class="t-err">{playback.error}</span>{/if}
-			</span>
-		</button>
-		<div class="t-time">
-			{fmtTime(playback.position)}{#if playback.duration}&nbsp;/&nbsp;{fmtTime(
-					playback.duration
-				)}{/if}
-		</div>
-		<div class="t-pos">
-			ord <span class="num">{playback.order}</span> · pat
-			<span class="num">{playback.pattern}</span> · row <span class="num">{playback.row}</span>
+		<div class="t-controls">
+			<button class="t-btn" onclick={playPrev} disabled={!hasPrev} aria-label="previous">
+				<SkipBack size={16} />
+			</button>
+			<button
+				class="t-btn"
+				onclick={transportToggle}
+				aria-label={playback.playing && !playback.paused ? 'pause' : 'play'}
+			>
+				{#if playback.playing && !playback.paused}<Pause size={16} />{:else}<Play size={16} />{/if}
+			</button>
+			<button class="t-btn" onclick={playNext} disabled={!hasNext} aria-label="next">
+				<SkipForward size={16} />
+			</button>
+			<button class="t-btn" onclick={stop} aria-label="stop"><Square size={16} /></button>
+			<button
+				class="t-btn"
+				onclick={() => setMuted(!playback.muted)}
+				aria-label={playback.muted ? 'unmute' : 'mute'}
+				title={playback.muted ? 'unmute' : 'mute'}
+			>
+				{#if playback.muted}<VolumeX size={16} />{:else}<Volume2 size={16} />{/if}
+			</button>
+			<button class="t-info" onclick={() => (showPattern = true)} title="open player view">
+				<span class="t-title">{playback.current.title || playback.current.filename}</span>
+				<span class="t-meta">
+					{playback.current.group}{playback.current.artist ? ` · ${playback.current.artist}` : ''}
+					{#if playback.error}· <span class="t-err">{playback.error}</span>{/if}
+				</span>
+			</button>
+			<div class="t-time">
+				{fmtTime(playback.position)}{#if playback.duration}&nbsp;/&nbsp;{fmtTime(
+						playback.duration
+					)}{/if}
+			</div>
+			<div class="t-pos">
+				ord <span class="num">{playback.order}</span> · pat
+				<span class="num">{playback.pattern}</span> · row <span class="num">{playback.row}</span>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -778,11 +827,30 @@
 		bottom: 0;
 		z-index: 5;
 		display: flex;
+		flex-direction: column;
+		background: var(--panel);
+		border-top: 1px solid var(--border);
+	}
+	.seek {
+		display: block;
+		width: 100%;
+		height: 8px;
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		background: var(--panel-hi);
+		cursor: pointer;
+	}
+	.seek-fill {
+		height: 100%;
+		background: var(--accent);
+		pointer-events: none;
+	}
+	.t-controls {
+		display: flex;
 		align-items: center;
 		gap: 12px;
 		padding: 8px 14px;
-		background: var(--panel);
-		border-top: 1px solid var(--border);
 	}
 	.t-btn {
 		flex: 0 0 auto;
@@ -886,9 +954,12 @@
 		.pv-pos {
 			display: none;
 		}
-		.transport {
-			gap: 8px;
-			padding: 8px 10px;
+		.t-controls {
+			gap: 6px;
+			padding: 8px 8px;
+		}
+		.t-btn {
+			min-width: 34px;
 		}
 	}
 </style>

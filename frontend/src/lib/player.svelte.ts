@@ -65,8 +65,14 @@ export const playback = $state({
 	samples: [] as string[],
 	instruments: [] as string[],
 	muted: false,
+	// Position in the play queue (the ordered list the current track was opened
+	// from), so next/prev and auto-advance work. -1 = no queue.
+	queueIndex: -1,
+	queueLength: 0,
 	error: null as string | null
 });
+
+let queue: Track[] = [];
 
 function ensurePlayer(): Promise<void> {
 	if (player) return ready as Promise<void>;
@@ -93,7 +99,9 @@ function ensurePlayer(): Promise<void> {
 		if (playback.current) void saveMeta(playback.current, meta);
 	});
 	player.onEnded(() => {
-		playback.playing = false;
+		// Auto-advance to the next track in the queue, else fall to stopped.
+		if (playback.queueIndex >= 0 && playback.queueIndex + 1 < queue.length) playNext();
+		else playback.playing = false;
 	});
 	player.onError((e: { type?: string }) => {
 		playback.error = e?.type ?? 'playback error';
@@ -122,6 +130,23 @@ export async function playTrack(track: Track) {
 	}
 	player.setVol(playback.muted ? 0 : 1);
 	player.load(fileUrl(track.hash));
+}
+
+/** Play `track` as part of an ordered `list` (enables next/prev + auto-advance). */
+export async function playInOrder(list: Track[], track: Track) {
+	queue = list;
+	playback.queueLength = list.length;
+	playback.queueIndex = list.findIndex((t) => t.path === track.path);
+	await playTrack(track);
+}
+
+export function playNext() {
+	const next = playback.queueIndex + 1;
+	if (playback.queueIndex >= 0 && next < queue.length) void playInOrder(queue, queue[next]);
+}
+
+export function playPrev() {
+	if (playback.queueIndex > 0) void playInOrder(queue, queue[playback.queueIndex - 1]);
 }
 
 /** The transport play/pause/restart button: from stopped → restart the current
