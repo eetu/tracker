@@ -618,8 +618,9 @@
 				</span>
 			</button>
 			<div class="t-time">
-				{fmtTime(playback.position)}{#if playback.duration}
-					/ {fmtTime(playback.duration)}{/if}
+				{playback.duration
+					? `${fmtTime(playback.position)} / ${fmtTime(playback.duration)}`
+					: fmtTime(playback.position)}
 			</div>
 			<div class="t-pos">
 				ord <span class="num">{playback.order}</span> · pat
@@ -896,15 +897,15 @@
 		z-index: 4;
 		display: flex;
 		flex-direction: column;
-		background: #0a0a14;
+		background: var(--surface);
 	}
 	.pv-bar {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		padding: 8px 12px;
-		background: #16161f;
-		border-bottom: 1px solid #2a2a3a;
+		background: var(--surface-bar);
+		border-bottom: 1px solid var(--surface-line-2);
 	}
 	.pv-title {
 		flex: 1;
@@ -969,10 +970,10 @@
 		display: flex;
 		gap: 10px;
 		padding: 2px 0;
-		border-bottom: 1px solid #1b1b2a;
+		border-bottom: 1px solid var(--surface-line);
 	}
 	.samples .sx {
-		color: #66708a;
+		color: var(--surface-fg-dim);
 		flex: 0 0 auto;
 		width: 24px;
 	}
@@ -995,7 +996,7 @@
 	.scope-strip {
 		flex: 0 0 auto;
 		height: 72px;
-		border-bottom: 1px solid #2a2a3a;
+		border-bottom: 1px solid var(--surface-line-2);
 	}
 	.pfill {
 		flex: 1;
@@ -1152,12 +1153,28 @@
 		.t-pos {
 			display: none;
 		}
+		/* The single transport row doesn't fit portrait width: give the
+		   title/meta its own full line on top, then let the six controls share
+		   the line below with the time readout. */
 		.t-controls {
+			flex-wrap: wrap;
 			gap: 6px;
+			row-gap: 8px;
 			padding: 8px 8px;
 		}
+		.t-info {
+			order: -1;
+			flex-basis: 100%;
+		}
 		.t-btn {
-			min-width: 34px;
+			flex: 1;
+			min-width: 0;
+			padding: 8px 0;
+		}
+		.t-time {
+			order: 1;
+			align-self: center;
+			padding-left: 4px;
 		}
 	}
 </style>

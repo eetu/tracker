@@ -67,8 +67,8 @@
 		overflow-x: auto;
 		overflow-y: hidden;
 		position: relative;
-		background: #0a0a14;
-		color: #aeb6c2;
+		background: var(--surface);
+		color: var(--surface-fg);
 		font-family: var(--font-mono-retro);
 		font-size: 16px;
 		line-height: 1;
@@ -87,10 +87,10 @@
 		right: 0;
 		top: 50%;
 		transform: translateY(-50%);
-		background: color-mix(in srgb, var(--accent) 22%, #10101c);
+		background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
 		box-shadow:
-			0 -1px 0 #2a2a3a,
-			0 1px 0 #2a2a3a;
+			0 -1px 0 var(--surface-line-2),
+			0 1px 0 var(--surface-line-2);
 		z-index: 0;
 	}
 	.rows {
@@ -104,23 +104,23 @@
 		align-items: center;
 	}
 	.prow.beat {
-		color: #c7cedb;
+		color: var(--surface-fg-beat);
 	}
 	.prow.active {
-		color: #fff;
+		color: var(--surface-fg-active);
 	}
 	.rownum {
 		flex: 0 0 auto;
 		width: 30px;
 		text-align: right;
 		padding: 0 6px;
-		color: #66708a;
+		color: var(--surface-fg-dim);
 	}
 	.cell {
 		flex: 0 0 auto;
 		width: 130px;
 		padding: 0 8px;
-		border-left: 1px solid #1b1b2a;
+		border-left: 1px solid var(--surface-line);
 		overflow: hidden;
 	}
 	.vu-overlay {

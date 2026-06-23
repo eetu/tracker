@@ -3,6 +3,7 @@
 	// AnalyserNode. (A first scope; per-channel FT2 scopes would need the worklet
 	// to expose per-channel PCM.)
 	import { playback, readScope, SCOPE_SIZE } from '$lib/player.svelte';
+	import { theme } from '$lib/theme.svelte';
 
 	let canvas: HTMLCanvasElement | null = $state(null);
 
@@ -27,13 +28,31 @@
 		ro.observe(el);
 
 		const buf = new Uint8Array(SCOPE_SIZE);
+		// Canvas can't use CSS vars directly — resolve the themed colours from
+		// the element's computed style, re-reading only when the theme flips.
+		let cachedMode: string | null = null;
+		let cBg = '#08080f';
+		let cGrid = '#2a2a3a';
+		let cWave = '#f0a02a';
+		const node: HTMLCanvasElement = el;
+		function refreshColors() {
+			const cs = getComputedStyle(node);
+			cBg = cs.getPropertyValue('--scope-bg').trim() || cBg;
+			cGrid = cs.getPropertyValue('--scope-grid').trim() || cGrid;
+			cWave = cs.getPropertyValue('--accent').trim() || cWave;
+		}
+
 		let raf = 0;
 		function frame() {
+			if (theme.mode !== cachedMode) {
+				refreshColors();
+				cachedMode = theme.mode;
+			}
 			if (w > 0 && h > 0) {
-				g2.fillStyle = '#08080f';
+				g2.fillStyle = cBg;
 				g2.fillRect(0, 0, w, h);
 				const mid = h / 2;
-				g2.strokeStyle = '#2a2a3a';
+				g2.strokeStyle = cGrid;
 				g2.lineWidth = 1;
 				g2.beginPath();
 				g2.moveTo(0, mid);
@@ -44,7 +63,7 @@
 				// silence = flat); cap the point count so wide screens don't draw
 				// thousands of segments per frame.
 				if (playback.playing && !playback.paused && readScope(buf)) {
-					g2.strokeStyle = '#f0a02a'; // halo accent
+					g2.strokeStyle = cWave; // halo accent
 					g2.lineWidth = 1.5;
 					g2.beginPath();
 					const points = Math.min(Math.floor(w), 512);
