@@ -14,10 +14,11 @@
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
-	import { api, ApiError, type StatusResponse, type Track } from '$lib/api';
+	import { api, ApiError, fileUrl, type StatusResponse, type Track } from '$lib/api';
 	import BoingBall from '$lib/BoingBall.svelte';
 	import PatternView from '$lib/PatternView.svelte';
 	import {
+		parseModule,
 		playback,
 		playInOrder,
 		playNext,
@@ -119,6 +120,55 @@
 				error = e instanceof Error ? e.message : String(e);
 			}
 			rescanning = false;
+		}
+	}
+
+	// ---- bulk metadata enrichment (parse every un-enriched module via WASM) ----
+	let enriching = $state(false);
+	let enrichDone = $state(0);
+	let enrichTotal = $state(0);
+	const unEnriched = $derived(tracks.filter((t) => !t.type_long).length);
+
+	async function enrichAll() {
+		const todo = tracks.filter((t) => !t.type_long);
+		if (todo.length === 0) return;
+		enrichTotal = todo.length;
+		enrichDone = 0;
+		enriching = true;
+		try {
+			for (const t of todo) {
+				if (!enriching) break; // cancelled
+				try {
+					const buf = await (await fetch(fileUrl(t.hash))).arrayBuffer();
+					const m = await parseModule(buf);
+					if (m) {
+						const payload = {
+							title: m.title || null,
+							type_long: m.type_long || null,
+							tracker: m.tracker || null,
+							duration: m.dur ?? null,
+							channels: m.channels ?? null,
+							instruments: m.instruments ?? null,
+							samples: m.samples ?? null,
+							n_orders: m.orders ?? null,
+							n_patterns: m.patterns ?? null
+						};
+						await api.putMeta(t.hash, payload);
+						t.title = payload.title;
+						t.type_long = payload.type_long;
+						t.tracker = payload.tracker;
+						t.duration = payload.duration;
+						t.channels = payload.channels;
+						t.instruments = payload.instruments;
+						t.samples = payload.samples;
+					}
+				} catch {
+					/* skip this module, keep going */
+				}
+				enrichDone++;
+			}
+		} finally {
+			enriching = false;
 		}
 	}
 
@@ -282,6 +332,13 @@
 		</select>
 	</label>
 	<button onclick={rescan} disabled={scanning}>{scanning ? 'scanning…' : 'rescan'}</button>
+	{#if enriching}
+		<button onclick={() => (enriching = false)}>cancel {enrichDone}/{enrichTotal}</button>
+	{:else if unEnriched > 0}
+		<button onclick={enrichAll} disabled={scanning} title="parse metadata for all modules">
+			enrich {unEnriched}
+		</button>
+	{/if}
 	<div class="count">
 		{#if scanning}
 			{#if (status?.scan_total ?? 0) > 0}
@@ -302,6 +359,13 @@
 {#if scanning}
 	<div class="progress" class:indeterminate={scanPct === null}>
 		<div class="progress-fill" style:width="{scanPct ?? 100}%"></div>
+	</div>
+{:else if enriching}
+	<div class="progress">
+		<div
+			class="progress-fill"
+			style:width="{enrichTotal ? (enrichDone / enrichTotal) * 100 : 0}%"
+		></div>
 	</div>
 {/if}
 

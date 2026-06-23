@@ -162,6 +162,9 @@ class MPT extends AudioWorkletProcessor {
 				//const extPtr = libopenmpt.openmpt_module_ext_get_interface(mod_ext, interface_id, interface, interface_size)
 				break
 			*/
+			case 'parse':
+				this.parse(v.id, v.file)
+				break
 			case 'decodeAll':
 				this.decodeAll(v)
 				break
@@ -169,6 +172,37 @@ class MPT extends AudioWorkletProcessor {
 				console.log('Received unknown message',msg.data)
 		}
 	} // handleMessage_
+
+	// PATCH (tracker): metadata-only parse for bulk library enrichment. Creates a
+	// throwaway module, reads tags + counts, frees it. Never touches this.modulePtr,
+	// so playback is unaffected. Posts {cmd:'parsed', id, meta}.
+	parse(id, buffer) {
+		const byteArray = new Int8Array(buffer)
+		const ptr = libopenmpt._malloc(byteArray.byteLength)
+		libopenmpt.HEAPU8.set(byteArray, ptr)
+		const m = libopenmpt._openmpt_module_create_from_memory(ptr, byteArray.byteLength, 0, 0, 0)
+		libopenmpt._free(ptr)
+		if (!m) {
+			this.port.postMessage({cmd: 'parsed', id, meta: null})
+			return
+		}
+		const meta = {}
+		meta.dur = libopenmpt._openmpt_module_get_duration_seconds(m)
+		const keys = libopenmpt.UTF8ToString(libopenmpt._openmpt_module_get_metadata_keys(m)).split(';')
+		for (let i = 0; i < keys.length; i++) {
+			const kb = libopenmpt._malloc(keys[i].length + 1)
+			writeAsciiToMemory(keys[i], kb)
+			meta[keys[i]] = libopenmpt.UTF8ToString(libopenmpt._openmpt_module_get_metadata(m, kb))
+			libopenmpt._free(kb)
+		}
+		meta.channels = libopenmpt._openmpt_module_get_num_channels(m)
+		meta.instruments = libopenmpt._openmpt_module_get_num_instruments(m)
+		meta.samples = libopenmpt._openmpt_module_get_num_samples(m)
+		meta.orders = libopenmpt._openmpt_module_get_num_orders(m)
+		meta.patterns = libopenmpt._openmpt_module_get_num_patterns(m)
+		libopenmpt._openmpt_module_destroy(m)
+		this.port.postMessage({cmd: 'parsed', id, meta})
+	}
 
 	decodeAll(buffer) {
 		this.play(buffer, true)

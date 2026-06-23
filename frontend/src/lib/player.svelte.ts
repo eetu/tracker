@@ -30,10 +30,27 @@ type Meta = {
 	song?: Song;
 };
 
+/** Lightweight metadata from a parse-only (no-audio) load, for bulk enrichment. */
+export type ParsedMeta = {
+	title?: string;
+	type_long?: string;
+	tracker?: string;
+	dur?: number;
+	channels?: number;
+	instruments?: number;
+	samples?: number;
+	orders?: number;
+	patterns?: number;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let player: any = null;
 let ready: Promise<void> | null = null;
 let analyser: AnalyserNode | null = null;
+let parseId = 0;
+// Plain (non-reactive) registry of in-flight parse resolvers — not UI state.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const pendingParse = new Map<number, (m: ParsedMeta | null) => void>();
 
 /** Output-waveform sample count for the scope (power of two). */
 export const SCOPE_SIZE = 2048;
@@ -112,6 +129,13 @@ function ensurePlayer(): Promise<void> {
 	});
 	player.onError((e: { type?: string }) => {
 		playback.error = e?.type ?? 'playback error';
+	});
+	player.onParsed((d: { id: number; meta: ParsedMeta | null }) => {
+		const resolve = pendingParse.get(d.id);
+		if (resolve) {
+			pendingParse.delete(d.id);
+			resolve(d.meta ?? null);
+		}
 	});
 	return ready as Promise<void>;
 }
@@ -204,6 +228,23 @@ export function setMuted(m: boolean) {
 	if (!player) return;
 	player.setVol(m ? 0 : 1);
 	playback.muted = m;
+}
+
+/** Parse a module's metadata without playing it (bulk library enrichment). */
+export async function parseModule(buffer: ArrayBuffer): Promise<ParsedMeta | null> {
+	await ensurePlayer();
+	const id = ++parseId;
+	return new Promise((resolve) => {
+		const timer = setTimeout(() => {
+			pendingParse.delete(id);
+			resolve(null);
+		}, 15000);
+		pendingParse.set(id, (m) => {
+			clearTimeout(timer);
+			resolve(m);
+		});
+		player.parse(id, buffer);
+	});
 }
 
 export function seekSeconds(sec: number) {

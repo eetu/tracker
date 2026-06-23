@@ -83,6 +83,9 @@ export class ChiptuneJsPlayer {
 			case 'fullAudioData':
 				this.fireEvent('onFullAudioData', msg.data);
 				break;
+			case 'parsed':
+				this.fireEvent('onParsed', msg.data);
+				break;
 			default:
 				console.log('Received unknown message', msg.data);
 		}
@@ -118,6 +121,9 @@ export class ChiptuneJsPlayer {
 	}
 	onFullAudioData(handler) {
 		this.addHandler('onFullAudioData', handler);
+	}
+	onParsed(handler) {
+		this.addHandler('onParsed', handler);
 	}
 
 	postMsg(cmd, val) {
@@ -175,5 +181,8 @@ export class ChiptuneJsPlayer {
 	}
 	decodeAll(ab) {
 		this.postMsg('decodeAll', ab);
+	}
+	parse(id, ab) {
+		this.postMsg('parse', { id: id, file: ab });
 	}
 }

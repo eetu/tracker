@@ -118,12 +118,18 @@ Cargo workspace = `backend` + `e2e`.
   files are excluded from eslint + prettier** (`static/vendor/`, `src/lib/vendor/`)
   — prettier silently reformats them otherwise. **Pending acceptance: in-browser
   audio + pattern smoke test** (everything else is statically verified).
-- **Next:** per-channel FT2 scopes (the master scope exists; per-channel needs
-  the worklet to expose per-channel PCM); sample-tab **keyboard jamming** (needs
-  a further worklet patch to expose `libopenmpt_ext` `play_note`) + render-captured
-  waveform; FT2
-  pixel font/chrome; reuse `BoingBall` as a playback visualizer toggle; a "Scan
-  all" enrichment button; house tooling (Dockerfile/CI/hooks/`tracker-design`
+- **Player/library features done:** queue (next/prev + auto-advance over the
+  visible order), seek bar, shuffle, repeat, keyboard shortcuts, and **enrich-all**
+  (parse every un-enriched module's metadata via a parse-only worklet command →
+  POST /api/meta, with progress + cancel).
+- **Keyboard jamming is BLOCKED** on the stock chiptune3 wasm: it exports
+  `ext_create_from_memory`/`ext_get_interface` but NOT
+  `openmpt_module_ext_get_module_handle`, so the ext module can't be rendered and
+  `play_note` can't reach the audio path. Needs a custom emscripten libopenmpt
+  build (emcc not installed). Don't retry on the stock build.
+- **Next:** per-channel FT2 scopes (master scope exists; per-channel needs the
+  worklet to expose per-channel PCM); FT2 pixel font/chrome; reuse `BoingBall` as
+  a playback visualizer toggle; house tooling (Dockerfile/CI/hooks/`tracker-design`
   skill); raspi deploy (CIFS `mods` share **mounted read-write** + quadlet,
   mirror `navidrome`).
 
