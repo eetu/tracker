@@ -302,15 +302,28 @@
 		groupOverride.set(name, !isOpen(name));
 	}
 
+	// Exact, fixed row heights (px) — must match the CSS below. Deterministic
+	// sizing (no measureElement) keeps offsets above the viewport stable, so
+	// opening a group never reflows/jumps the rows already on screen. The inline
+	// rename editor lives in a modal precisely so every row stays a fixed height.
+	const ROW_H = 34;
+	const HEAD_H = 40;
+	const CARD_GAP = 8;
+	function rowSize(i: number): number {
+		const r = rows[i];
+		if (r.kind === 'header') return HEAD_H + (r.first ? 0 : CARD_GAP);
+		return ROW_H;
+	}
+
 	let scrollEl = $state<HTMLElement | undefined>(undefined);
 	const virtualizer = createVirtualizer<HTMLElement, HTMLElement>({
 		count: 0,
 		getScrollElement: () => scrollEl ?? null,
-		estimateSize: () => 34,
-		overscan: 12,
+		estimateSize: rowSize,
+		overscan: 8,
 		getItemKey: (i) => rowKey(rows[i])
 	});
-	// Keep the virtualizer's count/keys in sync with the (reactive) row list and
+	// Keep count / sizing / keys in sync with the (reactive) row list and
 	// re-measure once the scroll element mounts. `untrack` stops the setOptions/
 	// measure writes from re-triggering this effect (they notify the store).
 	$effect(() => {
@@ -320,21 +333,12 @@
 			$virtualizer.setOptions({
 				...$virtualizer.options,
 				count: n,
+				estimateSize: rowSize,
 				getItemKey: (i: number) => rowKey(rows[i])
 			});
 			$virtualizer.measure();
 		});
 	});
-	// Action: register each rendered row for dynamic height measurement (handles
-	// the taller inline-rename row and any wrapping). Needs data-index on the node.
-	function measure(node: HTMLElement) {
-		$virtualizer.measureElement(node);
-		return {
-			update() {
-				$virtualizer.measureElement(node);
-			}
-		};
-	}
 	// Loudest channel VU drives the Boing-ball visualizer energy.
 	const vuEnergy = $derived(playback.vu.length ? Math.max(...playback.vu) : 0);
 	const hasPrev = $derived(playback.queueIndex > 0);
@@ -363,6 +367,10 @@
 	function onKey(e: KeyboardEvent) {
 		const el = e.target as HTMLElement | null;
 		if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+		if (e.key === 'Escape' && editingTrack) {
+			cancelEdit();
+			return;
+		}
 		if (e.key === 'Escape' && showPattern) {
 			showPattern = false;
 			return;
@@ -378,8 +386,8 @@
 		}
 	}
 
-	// ---- inline rename / move ----
-	let editingPath = $state<string | null>(null);
+	// ---- rename / move (modal, so list rows keep a fixed height) ----
+	let editingTrack = $state<Track | null>(null);
 	let dGroup = $state('');
 	let dArtist = $state('');
 	let dFilename = $state('');
@@ -387,14 +395,14 @@
 	let saving = $state(false);
 
 	function startEdit(t: Track) {
-		editingPath = t.path;
+		editingTrack = t;
 		dGroup = t.group;
 		dArtist = t.artist ?? '';
 		dFilename = t.filename;
 		renameError = null;
 	}
 	function cancelEdit() {
-		editingPath = null;
+		editingTrack = null;
 		renameError = null;
 	}
 
@@ -414,7 +422,7 @@
 			t.artist = res.artist;
 			t.filename = res.filename;
 			t.ext = res.ext;
-			editingPath = null;
+			editingTrack = null;
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 409)
 				renameError = 'A file with that name already exists there.';
@@ -549,8 +557,6 @@
 				<div
 					class="vrow"
 					class:spaced={row.kind === 'header' && !row.first}
-					data-index={v.index}
-					use:measure
 					style:transform="translateY({v.start}px)"
 				>
 					{#if row.kind === 'header'}
@@ -568,53 +574,37 @@
 						<div
 							class="card li"
 							class:last={row.last}
-							class:editing={editingPath === t.path}
 							class:current={playback.current?.path === t.path}
 						>
-							{#if editingPath === t.path}
-								<span class="fmt">{t.ext}</span>
-								<input class="edit-in" bind:value={dGroup} placeholder="group" />
-								<input class="edit-in" bind:value={dArtist} placeholder="artist (optional)" />
-								<input
-									class="edit-in fname"
-									bind:value={dFilename}
-									placeholder="filename"
-									onkeydown={(e) => onEditKey(e, t)}
-								/>
-								<button class="ok" onclick={() => saveEdit(t)} disabled={saving}>save</button>
-								<button onclick={cancelEdit} disabled={saving}>cancel</button>
-								{#if renameError}<span class="rename-err">{renameError}</span>{/if}
-							{:else}
-								<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
-									{#if playback.current?.path === t.path && playback.playing && !playback.paused}
-										<AudioLines size={15} />
-									{:else}
-										<Play size={15} />
-									{/if}
-								</button>
-								<span class="fmt">{t.ext}</span>
-								<button class="name" title={t.path} onclick={() => openTrack(t)}>
-									{t.title || t.filename}
-								</button>
-								<span class="sub">{subLabel(t)}</span>
-								{#if t.play_count > 0}
-									<span class="plays" title="{t.play_count} plays">▸{t.play_count}</span>
+							<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
+								{#if playback.current?.path === t.path && playback.playing && !playback.paused}
+									<AudioLines size={15} />
+								{:else}
+									<Play size={15} />
 								{/if}
-								{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
-								<button
-									class="fav"
-									class:on={t.favorite}
-									title={t.favorite ? 'unfavourite' : 'favourite'}
-									aria-label="toggle favourite"
-									aria-pressed={t.favorite}
-									onclick={() => toggleFavorite(t)}
-								>
-									<Star size={14} fill={t.favorite ? 'currentColor' : 'none'} />
-								</button>
-								<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
-									<Pencil size={14} />
-								</button>
+							</button>
+							<span class="fmt">{t.ext}</span>
+							<button class="name" title={t.path} onclick={() => openTrack(t)}>
+								{t.title || t.filename}
+							</button>
+							<span class="sub">{subLabel(t)}</span>
+							{#if t.play_count > 0}
+								<span class="plays" title="{t.play_count} plays">▸{t.play_count}</span>
 							{/if}
+							{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
+							<button
+								class="fav"
+								class:on={t.favorite}
+								title={t.favorite ? 'unfavourite' : 'favourite'}
+								aria-label="toggle favourite"
+								aria-pressed={t.favorite}
+								onclick={() => toggleFavorite(t)}
+							>
+								<Star size={14} fill={t.favorite ? 'currentColor' : 'none'} />
+							</button>
+							<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
+								<Pencil size={14} />
+							</button>
 						</div>
 					{/if}
 				</div>
@@ -622,6 +612,39 @@
 		</div>
 	{/if}
 </main>
+
+{#if editingTrack}
+	{@const et = editingTrack}
+	<div class="modal-bg">
+		<button class="modal-scrim" aria-label="close" onclick={cancelEdit}></button>
+		<div class="modal" role="dialog" aria-modal="true" aria-label="rename or move">
+			<h3>rename / move <span class="fmt">{et.ext}</span></h3>
+			<label>
+				group
+				<input bind:value={dGroup} placeholder="group" />
+			</label>
+			<label>
+				artist
+				<input bind:value={dArtist} placeholder="artist (optional)" />
+			</label>
+			<label>
+				filename
+				<!-- svelte-ignore a11y_autofocus -->
+				<input
+					bind:value={dFilename}
+					placeholder="filename"
+					autofocus
+					onkeydown={(e) => onEditKey(e, et)}
+				/>
+			</label>
+			{#if renameError}<p class="rename-err">{renameError}</p>{/if}
+			<div class="modal-actions">
+				<button onclick={cancelEdit} disabled={saving}>cancel</button>
+				<button class="ok" onclick={() => saveEdit(et)} disabled={saving}>save</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 {#if playback.current && showPattern}
 	<div class="pattern-overlay">
@@ -897,12 +920,15 @@
 		border-left: 1px solid var(--border);
 		border-right: 1px solid var(--border);
 	}
+	/* Fixed heights (match ROW_H/HEAD_H in the script) so the virtualizer's
+	   sizing is exact — no measureElement, no reflow/jump when a group opens. */
 	.head {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		width: 100%;
-		padding: 9px 12px;
+		height: 40px;
+		padding: 0 12px;
 		border-top: 1px solid var(--border);
 		border-bottom: 1px solid var(--border);
 		border-radius: 6px 6px 0 0;
@@ -924,16 +950,13 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 5px 12px;
+		height: 34px;
+		padding: 0 12px;
 		border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 	}
 	.li.last {
 		border-bottom: 1px solid var(--border);
 		border-radius: 0 0 6px 6px;
-	}
-	.li.editing {
-		background: var(--panel-hi);
-		flex-wrap: wrap;
 	}
 	.li.current {
 		background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -1007,22 +1030,69 @@
 		border-color: var(--accent);
 		color: var(--accent);
 	}
-	.edit-in {
-		padding: 4px 8px;
+	.rename-err {
+		color: #e06c6c;
+		font-size: 12px;
+		margin: 0;
+	}
+
+	/* Rename / move modal (keeps list rows a fixed height for the virtualizer). */
+	.modal-bg {
+		position: fixed;
+		inset: 0;
+		z-index: 6;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 16px;
+	}
+	.modal-scrim {
+		position: absolute;
+		inset: 0;
+		border: none;
+		border-radius: 0;
+		background: rgba(0, 0, 0, 0.5);
+		cursor: pointer;
+	}
+	.modal {
+		position: relative;
+		z-index: 1;
+		width: 100%;
+		max-width: 420px;
+		background: var(--panel);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	.modal h3 {
+		margin: 0;
+		font-size: 14px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.modal label {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		font-size: 12px;
+		color: var(--muted);
+	}
+	.modal input {
+		padding: 8px 10px;
 		background: var(--bg);
 		border: 1px solid var(--border);
 		border-radius: 4px;
 		color: var(--text);
-		min-width: 90px;
 	}
-	.edit-in.fname {
-		flex: 1;
-		min-width: 160px;
-	}
-	.rename-err {
-		flex-basis: 100%;
-		color: #e06c6c;
-		font-size: 12px;
+	.modal-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 4px;
 	}
 	.fmt {
 		flex: 0 0 auto;
@@ -1304,12 +1374,8 @@
 		.sub {
 			display: none;
 		}
-		li {
+		.li {
 			gap: 8px;
-		}
-		.edit-in {
-			flex-basis: 100%;
-			min-width: 0;
 		}
 		button,
 		select {
