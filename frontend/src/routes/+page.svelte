@@ -505,7 +505,7 @@
 		{/if}
 	</div>
 	<button
-		class="icon-btn"
+		class="icon-btn gear"
 		onclick={() => (showSettings = true)}
 		title="settings"
 		aria-label="settings"
@@ -1406,6 +1406,17 @@
 			flex-wrap: wrap;
 			gap: 8px;
 			padding: 8px 10px;
+		}
+		/* Row 1 is always [brand … gear]; everything else wraps below. */
+		.bar > * {
+			order: 2;
+		}
+		.brand {
+			order: 0;
+		}
+		.gear {
+			order: 1;
+			margin-left: auto;
 		}
 		.filter {
 			order: 3;
