@@ -8,6 +8,7 @@
 		Play,
 		Repeat,
 		ScanLine,
+		Settings,
 		Shuffle,
 		SkipBack,
 		SkipForward,
@@ -35,24 +36,24 @@
 		transportToggle
 	} from '$lib/player.svelte';
 	import Scope from '$lib/Scope.svelte';
-	import { cycleTheme, theme } from '$lib/theme.svelte';
+	import { setTheme, theme } from '$lib/theme.svelte';
 
 	type GroupKey = 'group' | 'artist' | 'ext';
 
 	let showPattern = $state(false);
+	let showSettings = $state(false);
 	let pvTab = $state<'pattern' | 'samples' | 'ball'>('pattern');
 	// Pattern view style: 'locked' = fixed centerline + vertical VU; 'scroll' =
-	// free-scrolling rows + header VU. Persisted across sessions.
+	// free-scrolling rows + header VU. Persisted across sessions; set in Settings.
 	let patternMode = $state<'locked' | 'scroll'>(
 		(typeof localStorage !== 'undefined' && localStorage.getItem('tracker:patternMode')) ===
 			'scroll'
 			? 'scroll'
 			: 'locked'
 	);
-	function togglePatternMode() {
-		patternMode = patternMode === 'locked' ? 'scroll' : 'locked';
-		if (typeof localStorage !== 'undefined')
-			localStorage.setItem('tracker:patternMode', patternMode);
+	function setPatternMode(m: 'locked' | 'scroll') {
+		patternMode = m;
+		if (typeof localStorage !== 'undefined') localStorage.setItem('tracker:patternMode', m);
 	}
 
 	function fmtTime(sec: number): string {
@@ -367,6 +368,10 @@
 	function onKey(e: KeyboardEvent) {
 		const el = e.target as HTMLElement | null;
 		if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+		if (e.key === 'Escape' && showSettings) {
+			showSettings = false;
+			return;
+		}
 		if (e.key === 'Escape' && editingTrack) {
 			cancelEdit();
 			return;
@@ -445,17 +450,7 @@
 <header class="bar">
 	<div class="brand">tracker</div>
 	<button
-		class="theme"
-		onclick={cycleTheme}
-		title={`theme: ${theme.mode} (click to change)`}
-		aria-label={`theme: ${theme.mode}`}
-	>
-		{#if theme.mode === 'dark'}<Moon size={16} />{:else if theme.mode === 'light'}<Sun
-				size={16}
-			/>{:else}<Monitor size={16} />{/if}
-	</button>
-	<button
-		class="theme"
+		class="icon-btn"
 		class:on={favoritesOnly}
 		onclick={() => (favoritesOnly = !favoritesOnly)}
 		title={favoritesOnly ? 'showing favourites' : 'show favourites only'}
@@ -509,6 +504,14 @@
 			{groupBy === 'ext' ? 'formats' : groupBy === 'artist' ? 'artists' : 'groups'}
 		{/if}
 	</div>
+	<button
+		class="icon-btn"
+		onclick={() => (showSettings = true)}
+		title="settings"
+		aria-label="settings"
+	>
+		<Settings size={16} />
+	</button>
 </header>
 
 {#if scanning}
@@ -646,6 +649,43 @@
 	</div>
 {/if}
 
+{#if showSettings}
+	<div class="modal-bg">
+		<button class="modal-scrim" aria-label="close" onclick={() => (showSettings = false)}></button>
+		<div class="modal" role="dialog" aria-modal="true" aria-label="settings">
+			<h3>settings</h3>
+			<div class="setting">
+				<span class="setting-label">theme</span>
+				<div class="seg">
+					<button class:on={theme.mode === 'light'} onclick={() => setTheme('light')}>
+						<Sun size={15} /> light
+					</button>
+					<button class:on={theme.mode === 'dark'} onclick={() => setTheme('dark')}>
+						<Moon size={15} /> dark
+					</button>
+					<button class:on={theme.mode === 'auto'} onclick={() => setTheme('auto')}>
+						<Monitor size={15} /> auto
+					</button>
+				</div>
+			</div>
+			<div class="setting">
+				<span class="setting-label">pattern view</span>
+				<div class="seg">
+					<button class:on={patternMode === 'locked'} onclick={() => setPatternMode('locked')}>
+						<ScanLine size={15} /> centerline
+					</button>
+					<button class:on={patternMode === 'scroll'} onclick={() => setPatternMode('scroll')}>
+						free scroll
+					</button>
+				</div>
+			</div>
+			<div class="modal-actions">
+				<button onclick={() => (showSettings = false)}>close</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 {#if playback.current && showPattern}
 	<div class="pattern-overlay">
 		<div class="pv-bar">
@@ -655,19 +695,6 @@
 				<button class:on={pvTab === 'samples'} onclick={() => (pvTab = 'samples')}>samples</button>
 				<button class:on={pvTab === 'ball'} onclick={() => (pvTab = 'ball')}>ball</button>
 			</div>
-			<!-- Always laid out so the close button never shifts between tabs; only
-			     meaningful on the pattern tab, hidden (space reserved) elsewhere. -->
-			<button
-				class="t-btn"
-				class:on={patternMode === 'locked'}
-				onclick={togglePatternMode}
-				aria-label="toggle pattern scroll mode"
-				title={patternMode === 'locked' ? 'fixed centerline' : 'free scroll'}
-				style:visibility={pvTab === 'pattern' ? 'visible' : 'hidden'}
-				disabled={pvTab !== 'pattern'}
-			>
-				<ScanLine size={16} />
-			</button>
 			<button
 				class="pv-close"
 				onclick={() => (showPattern = false)}
@@ -788,7 +815,7 @@
 		color: var(--accent);
 		text-transform: lowercase;
 	}
-	.theme {
+	.icon-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -989,7 +1016,7 @@
 	.li:hover .fav {
 		visibility: visible;
 	}
-	.theme.on {
+	.icon-btn.on {
 		color: var(--bg);
 		background: var(--accent);
 		border-color: var(--accent);
@@ -1094,6 +1121,36 @@
 		gap: 8px;
 		margin-top: 4px;
 	}
+
+	/* Settings rows: a label above a segmented choice control. */
+	.setting {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.setting-label {
+		font-size: 12px;
+		color: var(--muted);
+	}
+	.seg {
+		display: flex;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+	.seg button {
+		flex: 1;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 8px 10px;
+		white-space: nowrap;
+	}
+	.seg button.on {
+		color: var(--bg);
+		background: var(--accent);
+		border-color: var(--accent);
+	}
 	.fmt {
 		flex: 0 0 auto;
 		min-width: 44px;
@@ -1158,11 +1215,6 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-	}
-	/* The pattern-mode toggle is an icon button in the bar — drop the wide
-	   transport min-width so it matches the tabs/close button footprint. */
-	.pv-bar .t-btn {
-		min-width: 0;
 	}
 	/* Reserve a fixed 2-digit slot per number so ord/pat/row don't shift the
 	   layout as they tick between 1 and 2 digits (tabular-nums alone can't —
@@ -1424,9 +1476,8 @@
 		.pv-title {
 			display: none;
 		}
-		/* Title gone: tabs stay left, the centerline toggle + close group to the
-		   right (auto margin on the toggle pushes it and the close over). */
-		.pv-bar .t-btn {
+		/* Title gone: tabs stay left, close pinned to the right. */
+		.pv-close {
 			margin-left: auto;
 		}
 	}
