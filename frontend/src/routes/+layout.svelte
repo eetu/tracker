@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '@fontsource-variable/inter';
+	import '$lib/styles/halo.css';
 
 	import type { Snippet } from 'svelte';
 
@@ -17,7 +18,7 @@
 			const eff = mode === 'auto' ? (mq.matches ? 'dark' : 'light') : mode;
 			document.documentElement.dataset.theme = eff;
 			const meta = document.querySelector('meta[name="theme-color"]');
-			if (meta) meta.setAttribute('content', eff === 'light' ? '#f4f5f7' : '#0d0f12');
+			if (meta) meta.setAttribute('content', eff === 'light' ? '#f0f0f0' : '#0f0f0f');
 		};
 		apply();
 		if (mode === 'auto') {
@@ -38,59 +39,35 @@
 		font-display: swap;
 	}
 
+	/* App tokens are a thin mapping onto the halo-design palette (halo.css). The
+	   --halo-* vars flip with data-theme, so this single block covers both
+	   themes — no per-theme overrides needed here. */
 	:global(:root) {
-		/* Provisional palette — the pixel-perfect FastTracker 2 chrome (DOS
-		   palette, beveled panels) lands with the player surface in a later
-		   step; halo-design tokens will govern the outer chrome. */
-		--bg: #0d0f12;
-		--panel: #1a1d23;
-		--panel-hi: #262b33;
-		--border: #313742;
-		--text: #d7dce3;
-		--muted: #8b94a3;
-		--accent: #f0a02a;
-		--accent-dim: #7a5414;
-		/* Player surface (pattern grid + scope overlay) — dark FT2 palette by
-		   default; the light theme remaps these too (see below). */
-		--surface: #0a0a14; /* deep pattern-grid bg */
-		--surface-2: #10101c; /* centerline base / inset */
-		--surface-bar: #16161f; /* overlay top bar */
-		--surface-line: #1b1b2a; /* cell / row dividers */
-		--surface-line-2: #2a2a3a; /* stronger dividers (bar/scope borders) */
-		--surface-fg: #aeb6c2; /* default text */
-		--surface-fg-beat: #c7cedb; /* every-4th-row text */
-		--surface-fg-active: #ffffff; /* current row */
-		--surface-fg-dim: #66708a; /* row numbers / sample index */
-		--scope-bg: #08080f;
-		--scope-grid: #2a2a3a;
-		/* retro face for the player surface (Amiga Topaz; native size 16px). */
+		--bg: var(--halo-body);
+		--panel: var(--halo-bg-main);
+		--panel-hi: var(--halo-off-bg);
+		--border: var(--halo-border);
+		--text: var(--halo-text-main);
+		--muted: var(--halo-text-muted);
+		--accent: var(--halo-accent);
+		--accent-dim: var(--halo-accent-soft);
+		/* Player surface (pattern grid + scope overlay), derived from halo. */
+		--surface: var(--halo-body);
+		--surface-2: var(--halo-bg-light);
+		--surface-bar: var(--halo-bg-light);
+		--surface-line: var(--halo-border);
+		--surface-line-2: var(--halo-off-bg);
+		--surface-fg: var(--halo-text-muted);
+		--surface-fg-beat: var(--halo-text-main);
+		--surface-fg-active: var(--halo-text-main);
+		--surface-fg-dim: var(--halo-text-light);
+		--scope-bg: var(--halo-body);
+		--scope-grid: var(--halo-off-bg);
+		/* tracker keeps its retro identity: Amiga TopazPlus on the player
+		   surfaces, Inter (halo body font) everywhere else. */
 		--font-retro: 'TopazPlus', ui-monospace, monospace;
 		--font-mono-retro: 'TopazPlus', ui-monospace, monospace;
-		font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
-	}
-
-	/* Light theme — remaps every token, including the player surface, so all
-	   components follow the theme. */
-	:global(:root[data-theme='light']) {
-		--bg: #f4f5f7;
-		--panel: #ffffff;
-		--panel-hi: #eceef1;
-		--border: #d3d8e0;
-		--text: #1b1e24;
-		--muted: #5c6677;
-		--accent: #b06f0a;
-		--accent-dim: #fbe7c2;
-		--surface: #ffffff;
-		--surface-2: #eef0f3;
-		--surface-bar: #eceef1;
-		--surface-line: #e2e5ea;
-		--surface-line-2: #d3d8e0;
-		--surface-fg: #41495a;
-		--surface-fg-beat: #1b1e24;
-		--surface-fg-active: #000000;
-		--surface-fg-dim: #9aa3b2;
-		--scope-bg: #f0f2f5;
-		--scope-grid: #d3d8e0;
+		font-family: var(--halo-font-body);
 	}
 
 	:global(*) {

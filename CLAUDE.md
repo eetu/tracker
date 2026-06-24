@@ -52,10 +52,13 @@ Cargo workspace = `backend` + `e2e`.
 - **Design.** Icons are **Lucide** (`@lucide/svelte`), squared (CSS overrides the
   default round strokes to `square`/`miter`, thicker stroke, small) to sit with
   the retro fonts — **not** Material Icons. Fonts are **self-hosted via fontsource**
-  (no Google CDN): Inter Variable (body); on the player surface VT323 (retro mono:
-  pattern grid, sample list, ord/pat/row readouts) + Press Start 2P (brand). The
-  full halo `colors_and_type.css` isn't adopted yet — a provisional dark palette
-  lives in `+layout.svelte` (the `tracker-design` skill / halo pass is still todo).
+  (no Google CDN): Inter Variable (body + chrome) with Amiga **TopazPlus** on the
+  player surfaces (`--font-retro`: brand, pattern grid, sample list, ord/pat/row +
+  time readouts). **halo-design is adopted**: `--halo-*` tokens in
+  `src/lib/styles/halo.css` (dark-first, flipped by `data-theme`, no Google CDN),
+  with `+layout.svelte` mapping the app tokens (`--bg/--panel/--accent/--surface-*`)
+  onto them. Light/dark/auto via `data-theme` (`src/lib/theme.svelte.ts`). See the
+  `tracker-design` skill. Consume tokens, never hard-coded hex.
 - **Player control model** (`player.svelte.ts` is a small state machine —
   stopped/playing/paused over one loaded `current` module): tapping a track opens
   the player (pattern) view and plays it; the already-loaded track just reopens
@@ -154,9 +157,7 @@ Cargo workspace = `backend` + `e2e`.
   lint/format vs `cargo clippy --workspace`), `SECURITY.md`, and the
   `.claude/skills/tracker-design` skill. CI/dockerimage/automerge/cve-scan +
   dependabot already in `.github/`.
-- **Next:** FT2 pixel font/chrome polish; adopt the full halo
-  `colors_and_type.css` (the `tracker-design` skill currently documents a
-  provisional palette).
+- **Next:** FT2 pixel font/chrome polish.
 - **Favourites + play counts (done):** hash-keyed `stats` table (`favorite`,
   `play_count`, `last_played`) joined into `/api/tracks`; `POST /api/favorite/:hash`
   + `POST /api/play/:hash`. UI: per-row star, a header "favourites only" filter, a

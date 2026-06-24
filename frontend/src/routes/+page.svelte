@@ -862,7 +862,7 @@
 		padding: 24px 0;
 	}
 	.msg.err {
-		color: #e06c6c;
+		color: var(--halo-error);
 	}
 	.link {
 		padding: 2px 8px;
@@ -1031,7 +1031,7 @@
 		color: var(--accent);
 	}
 	.rename-err {
-		color: #e06c6c;
+		color: var(--halo-error);
 		font-size: 12px;
 		margin: 0;
 	}
@@ -1322,7 +1322,7 @@
 		white-space: nowrap;
 	}
 	.t-err {
-		color: #e06c6c;
+		color: var(--halo-error);
 	}
 	.t-time {
 		flex: 0 0 auto;
