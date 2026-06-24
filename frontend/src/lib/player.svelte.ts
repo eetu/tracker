@@ -261,6 +261,16 @@ export async function playTrack(track: Track) {
 	player.setVol(playback.muted ? 0 : 1);
 	player.load(fileUrl(track.hash));
 	syncNowPlaying();
+	// Count this play (each start counts; server is authoritative). Reflect the
+	// new total on the (proxied) track so the list badge updates immediately.
+	void api
+		.play(track.hash)
+		.then((r) => {
+			track.play_count = r.play_count;
+		})
+		.catch(() => {
+			/* best effort */
+		});
 }
 
 /** Play `track` as part of an ordered `list` (enables next/prev + auto-advance). */

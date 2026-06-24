@@ -115,6 +115,16 @@ CREATE TABLE IF NOT EXISTS meta (
   n_patterns   INTEGER,
   updated_at   TEXT NOT NULL
 );
+
+-- Per-tune listener state, keyed by content hash (so a favourite / play count
+-- follows the file across moves, like meta). Global, not per-user — the library
+-- is a single shared collection behind edge auth.
+CREATE TABLE IF NOT EXISTS stats (
+  content_hash TEXT PRIMARY KEY,
+  favorite     INTEGER NOT NULL DEFAULT 0,
+  play_count   INTEGER NOT NULL DEFAULT 0,
+  last_played  TEXT
+);
 "#;
 
 #[cfg(test)]

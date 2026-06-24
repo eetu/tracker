@@ -581,6 +581,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/svelte-virtual@npm:^3.13.29":
+  version: 3.13.29
+  resolution: "@tanstack/svelte-virtual@npm:3.13.29"
+  dependencies:
+    "@tanstack/virtual-core": "npm:3.17.1"
+  peerDependencies:
+    svelte: ^3.48.0 || ^4.0.0 || ^5.0.0
+  checksum: 10/bc75c9e08f307109dc8bf35b2f3bd62061b894cc1b2e4bb50afe48d57b1f05c029007f46c705782f52cb96fda3b05e72a0a039170773320416ebf074a07edf45
+  languageName: node
+  linkType: hard
+
+"@tanstack/virtual-core@npm:3.17.1":
+  version: 3.17.1
+  resolution: "@tanstack/virtual-core@npm:3.17.1"
+  checksum: 10/cf6b242963065d8b8e75ea5b77dfb20abcd63344a29fe4a762bf13a20ba52b7b9235c9be7c3c8f56edd9f0ffe15b4bb4b3ca63a208f126759da17831917838b7
+  languageName: node
+  linkType: hard
+
 "@tybys/wasm-util@npm:^0.10.2":
   version: 0.10.2
   resolution: "@tybys/wasm-util@npm:0.10.2"
@@ -2183,6 +2201,7 @@ __metadata:
     "@sveltejs/adapter-static": "npm:^3.0.10"
     "@sveltejs/kit": "npm:^2.57.0"
     "@sveltejs/vite-plugin-svelte": "npm:^7.0.0"
+    "@tanstack/svelte-virtual": "npm:^3.13.29"
     "@types/node": "npm:^25"
     eslint: "npm:^10.4.0"
     prettier: "npm:^3.8.3"

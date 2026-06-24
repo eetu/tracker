@@ -11,11 +11,13 @@
 		Shuffle,
 		SkipBack,
 		SkipForward,
+		Star,
 		Sun,
 		X
 	} from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { createVirtualizer } from '@tanstack/svelte-virtual';
+	import { onMount, untrack } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	import { api, ApiError, fileUrl, type StatusResponse, type Track } from '$lib/api';
 	import BoingBall from '$lib/BoingBall.svelte';
@@ -71,7 +73,19 @@
 	let rescanning = $state(false);
 
 	let groupBy = $state<GroupKey>('group');
+	let sortBy = $state<'name' | 'plays'>('name');
+	let favoritesOnly = $state(false);
 	let query = $state('');
+
+	async function toggleFavorite(t: Track) {
+		const next = !t.favorite;
+		t.favorite = next; // optimistic — $state proxy updates the row + facet
+		try {
+			await api.setFavorite(t.hash, next);
+		} catch {
+			t.favorite = !next; // revert on failure
+		}
+	}
 
 	async function loadTracks() {
 		tracks = await api.tracks();
@@ -210,12 +224,15 @@
 
 	const filtered = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return tracks;
-		return tracks.filter((t) =>
-			[t.path, t.title, t.filename, t.group, t.artist, t.type_long]
-				.filter(Boolean)
-				.some((v) => (v as string).toLowerCase().includes(q))
-		);
+		let list = tracks;
+		if (favoritesOnly) list = list.filter((t) => t.favorite);
+		if (q)
+			list = list.filter((t) =>
+				[t.path, t.title, t.filename, t.group, t.artist, t.type_long]
+					.filter(Boolean)
+					.some((v) => (v as string).toLowerCase().includes(q))
+			);
+		return list;
 	});
 
 	function keyOf(t: Track): string {
@@ -230,6 +247,10 @@
 			const k = keyOf(t);
 			(acc[k] ??= []).push(t);
 		}
+		// Within each group: 'name' keeps the server's title/filename order;
+		// 'plays' sorts most-played first.
+		if (sortBy === 'plays')
+			for (const items of Object.values(acc)) items.sort((a, b) => b.play_count - a.play_count);
 		return Object.entries(acc).sort((a, b) =>
 			a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
 		);
@@ -241,17 +262,76 @@
 		return t.artist ? `${t.group} · ${t.artist}` : t.group;
 	}
 
-	// Only render rows for open groups (≤12 groups → all open). With hundreds of
-	// groups collapsed this keeps thousands of <li>/icons out of the DOM.
-	const openGroups = new SvelteSet<string>();
+	// Group open/closed state. Few groups (≤12) default to open; a user toggle is
+	// remembered per group in an override map (so auto-open groups can be closed
+	// and vice-versa). The flat row list below only emits rows for open groups.
+	const groupOverride = new SvelteMap<string, boolean>();
 	const expandAll = $derived(groups.length <= 12);
 	function isOpen(name: string): boolean {
-		return expandAll || openGroups.has(name);
+		return groupOverride.get(name) ?? expandAll;
 	}
 
 	// The visible order is the play queue, so next/prev/auto-advance follow what
 	// you see (current grouping + filter).
 	const flatTracks = $derived(groups.flatMap(([, items]) => items));
+
+	// ---- virtualized library list ----
+	// Flatten the grouped tree into one row stream (a header row per group, plus
+	// the track rows of open groups) and virtualize it with TanStack Virtual, so
+	// thousands of <li> never hit the DOM at once.
+	type LibRow =
+		| { kind: 'header'; name: string; count: number; open: boolean }
+		| { kind: 'track'; track: Track };
+
+	const rows = $derived.by<LibRow[]>(() => {
+		const out: LibRow[] = [];
+		for (const [name, items] of groups) {
+			const open = isOpen(name);
+			out.push({ kind: 'header', name, count: items.length, open });
+			if (open) for (const t of items) out.push({ kind: 'track', track: t });
+		}
+		return out;
+	});
+	function rowKey(r: LibRow): string {
+		return r.kind === 'header' ? `h:${r.name}` : `t:${r.track.path}`;
+	}
+	function toggleGroup(name: string) {
+		groupOverride.set(name, !isOpen(name));
+	}
+
+	let scrollEl = $state<HTMLElement | undefined>(undefined);
+	const virtualizer = createVirtualizer<HTMLElement, HTMLElement>({
+		count: 0,
+		getScrollElement: () => scrollEl ?? null,
+		estimateSize: () => 34,
+		overscan: 12,
+		getItemKey: (i) => rowKey(rows[i])
+	});
+	// Keep the virtualizer's count/keys in sync with the (reactive) row list and
+	// re-measure once the scroll element mounts. `untrack` stops the setOptions/
+	// measure writes from re-triggering this effect (they notify the store).
+	$effect(() => {
+		const n = rows.length;
+		void scrollEl;
+		untrack(() => {
+			$virtualizer.setOptions({
+				...$virtualizer.options,
+				count: n,
+				getItemKey: (i: number) => rowKey(rows[i])
+			});
+			$virtualizer.measure();
+		});
+	});
+	// Action: register each rendered row for dynamic height measurement (handles
+	// the taller inline-rename row and any wrapping). Needs data-index on the node.
+	function measure(node: HTMLElement) {
+		$virtualizer.measureElement(node);
+		return {
+			update() {
+				$virtualizer.measureElement(node);
+			}
+		};
+	}
 	// Loudest channel VU drives the Boing-ball visualizer energy.
 	const vuEnergy = $derived(playback.vu.length ? Math.max(...playback.vu) : 0);
 	const hasPrev = $derived(playback.queueIndex > 0);
@@ -363,6 +443,16 @@
 				size={16}
 			/>{:else}<Monitor size={16} />{/if}
 	</button>
+	<button
+		class="theme"
+		class:on={favoritesOnly}
+		onclick={() => (favoritesOnly = !favoritesOnly)}
+		title={favoritesOnly ? 'showing favourites' : 'show favourites only'}
+		aria-label="toggle favourites filter"
+		aria-pressed={favoritesOnly}
+	>
+		<Star size={16} fill={favoritesOnly ? 'currentColor' : 'none'} />
+	</button>
 	<input
 		class="filter"
 		type="search"
@@ -376,6 +466,13 @@
 			<option value="group">group</option>
 			<option value="artist">artist</option>
 			<option value="ext">format</option>
+		</select>
+	</label>
+	<label class="groupby">
+		sort
+		<select bind:value={sortBy} disabled={scanning}>
+			<option value="name">name</option>
+			<option value="plays">most played</option>
 		</select>
 	</label>
 	<button onclick={rescan} disabled={scanning}>{scanning ? 'scanning…' : 'rescan'}</button>
@@ -416,7 +513,7 @@
 	</div>
 {/if}
 
-<main>
+<main bind:this={scrollEl}>
 	{#if scanning && tracks.length === 0}
 		<div class="scan-panel">
 			<div class="boing"><BoingBall /></div>
@@ -445,63 +542,77 @@
 			No modules indexed yet — try <button class="link" onclick={rescan}>rescan</button>.
 		</p>
 	{:else}
-		{#each groups as [name, items] (name)}
-			<details
-				class="grp"
-				open={expandAll}
-				ontoggle={(e) => {
-					if (e.currentTarget.open) openGroups.add(name);
-					else openGroups.delete(name);
-				}}
-			>
-				<summary>
-					<span class="grp-name">{name}</span>
-					<span class="grp-count">{items.length}</span>
-				</summary>
-				{#if isOpen(name)}
-					<ul>
-						{#each items as t (t.path)}
-							<li
-								class:editing={editingPath === t.path}
-								class:current={playback.current?.path === t.path}
-							>
-								{#if editingPath === t.path}
-									<span class="fmt">{t.ext}</span>
-									<input class="edit-in" bind:value={dGroup} placeholder="group" />
-									<input class="edit-in" bind:value={dArtist} placeholder="artist (optional)" />
-									<input
-										class="edit-in fname"
-										bind:value={dFilename}
-										placeholder="filename"
-										onkeydown={(e) => onEditKey(e, t)}
-									/>
-									<button class="ok" onclick={() => saveEdit(t)} disabled={saving}>save</button>
-									<button onclick={cancelEdit} disabled={saving}>cancel</button>
-									{#if renameError}<span class="rename-err">{renameError}</span>{/if}
-								{:else}
-									<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
-										{#if playback.current?.path === t.path && playback.playing && !playback.paused}
-											<AudioLines size={15} />
-										{:else}
-											<Play size={15} />
-										{/if}
-									</button>
-									<span class="fmt">{t.ext}</span>
-									<button class="name" title={t.path} onclick={() => openTrack(t)}>
-										{t.title || t.filename}
-									</button>
-									<span class="sub">{subLabel(t)}</span>
-									{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
-									<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
-										<Pencil size={14} />
-									</button>
+		<div class="vlist" style:height="{$virtualizer.getTotalSize()}px">
+			{#each $virtualizer.getVirtualItems() as v (v.key)}
+				{@const row = rows[v.index]}
+				<div
+					class="vrow"
+					data-index={v.index}
+					use:measure
+					style:transform="translateY({v.start}px)"
+				>
+					{#if row.kind === 'header'}
+						<button class="grp-head" onclick={() => toggleGroup(row.name)} aria-expanded={row.open}>
+							<span class="caret" class:open={row.open}>▸</span>
+							<span class="grp-name">{row.name}</span>
+							<span class="grp-count">{row.count}</span>
+						</button>
+					{:else}
+						{@const t = row.track}
+						<div
+							class="li"
+							class:editing={editingPath === t.path}
+							class:current={playback.current?.path === t.path}
+						>
+							{#if editingPath === t.path}
+								<span class="fmt">{t.ext}</span>
+								<input class="edit-in" bind:value={dGroup} placeholder="group" />
+								<input class="edit-in" bind:value={dArtist} placeholder="artist (optional)" />
+								<input
+									class="edit-in fname"
+									bind:value={dFilename}
+									placeholder="filename"
+									onkeydown={(e) => onEditKey(e, t)}
+								/>
+								<button class="ok" onclick={() => saveEdit(t)} disabled={saving}>save</button>
+								<button onclick={cancelEdit} disabled={saving}>cancel</button>
+								{#if renameError}<span class="rename-err">{renameError}</span>{/if}
+							{:else}
+								<button class="play" aria-label="open" title="open" onclick={() => openTrack(t)}>
+									{#if playback.current?.path === t.path && playback.playing && !playback.paused}
+										<AudioLines size={15} />
+									{:else}
+										<Play size={15} />
+									{/if}
+								</button>
+								<span class="fmt">{t.ext}</span>
+								<button class="name" title={t.path} onclick={() => openTrack(t)}>
+									{t.title || t.filename}
+								</button>
+								<span class="sub">{subLabel(t)}</span>
+								{#if t.play_count > 0}
+									<span class="plays" title="{t.play_count} plays">▸{t.play_count}</span>
 								{/if}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</details>
-		{/each}
+								{#if t.duration}<span class="dur">{fmtTime(t.duration)}</span>{/if}
+								<button
+									class="fav"
+									class:on={t.favorite}
+									title={t.favorite ? 'unfavourite' : 'favourite'}
+									aria-label="toggle favourite"
+									aria-pressed={t.favorite}
+									onclick={() => toggleFavorite(t)}
+								>
+									<Star size={14} fill={t.favorite ? 'currentColor' : 'none'} />
+								</button>
+								<button class="edit" title="rename / move" onclick={() => startEdit(t)}>
+									<Pencil size={14} />
+								</button>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</div>
 	{/if}
 </main>
 
@@ -711,6 +822,9 @@
 	}
 
 	main {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
 		padding: 12px 14px 60px;
 	}
 	.msg {
@@ -753,20 +867,38 @@
 		opacity: 0.7;
 	}
 
-	.grp {
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		margin-bottom: 8px;
-		background: var(--panel);
-		overflow: hidden;
+	/* Virtualized list: absolutely-positioned rows inside a tall spacer. */
+	.vlist {
+		position: relative;
+		width: 100%;
 	}
-	summary {
+	.vrow {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+	}
+	.grp-head {
 		display: flex;
 		align-items: center;
 		gap: 10px;
+		width: 100%;
 		padding: 8px 12px;
+		background: var(--panel);
+		border: none;
+		border-radius: 0;
+		border-bottom: 1px solid var(--border);
 		cursor: pointer;
-		user-select: none;
+		text-align: left;
+	}
+	.caret {
+		display: inline-block;
+		color: var(--muted);
+		font-size: 11px;
+		transition: transform 0.12s ease;
+	}
+	.caret.open {
+		transform: rotate(90deg);
 	}
 	.grp-name {
 		font-weight: 600;
@@ -776,33 +908,52 @@
 		color: var(--muted);
 		font-variant-numeric: tabular-nums;
 	}
-	ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		border-top: 1px solid var(--border);
-	}
-	li {
+	.li {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		padding: 5px 12px;
 		border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 	}
-	li:last-child {
-		border-bottom: none;
-	}
-	li.editing {
+	.li.editing {
 		background: var(--panel-hi);
 		flex-wrap: wrap;
 	}
-	li.current {
+	.li.current {
 		background: color-mix(in srgb, var(--accent) 12%, transparent);
 		box-shadow: inset 2px 0 0 var(--accent);
 	}
-	li.current button.name {
+	.li.current button.name {
 		color: var(--accent);
 		font-weight: 600;
+	}
+	.plays {
+		flex: 0 0 auto;
+		color: var(--muted);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+	}
+	.fav {
+		visibility: hidden;
+		padding: 2px 6px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		color: var(--muted);
+	}
+	.fav.on {
+		visibility: visible;
+		color: var(--accent);
+	}
+	.li:hover .fav {
+		visibility: visible;
+	}
+	.theme.on {
+		color: var(--bg);
+		background: var(--accent);
+		border-color: var(--accent);
 	}
 	.play {
 		flex: 0 0 auto;
@@ -833,7 +984,7 @@
 		align-items: center;
 		justify-content: center;
 	}
-	li:hover .edit {
+	.li:hover .edit {
 		visibility: visible;
 	}
 	.ok {
@@ -1104,7 +1255,8 @@
 
 	/* Touch has no hover — always show the rename affordance there. */
 	@media (hover: none) {
-		.edit {
+		.edit,
+		.fav {
 			visibility: visible;
 		}
 	}

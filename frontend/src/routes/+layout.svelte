@@ -97,13 +97,25 @@
 		box-sizing: border-box;
 	}
 
+	/* The app owns the viewport: header + scrolling <main> + fixed transport.
+	   <main> is the scroll container (TanStack Virtual scrolls it), so the body
+	   itself never scrolls — no phantom page scrollbar behind the player overlay. */
+	:global(html),
+	:global(body) {
+		height: 100%;
+	}
 	:global(body) {
 		margin: 0;
 		background: var(--bg);
 		color: var(--text);
 		font-size: 14px;
 		-webkit-font-smoothing: antialiased;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 	}
+	/* SvelteKit mounts into a display:contents wrapper, so header/main/transport
+	   become the body flex items directly. */
 
 	:global(button) {
 		font: inherit;

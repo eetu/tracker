@@ -19,6 +19,8 @@ export type Track = {
 	channels: number | null;
 	instruments: number | null;
 	samples: number | null;
+	favorite: boolean;
+	play_count: number;
 };
 
 export type StatusResponse = {
@@ -103,7 +105,13 @@ export const api = {
 	putMeta: (hash: string, meta: MetaIn) =>
 		request<void>(`/api/meta/${hash}`, { method: 'POST', body: JSON.stringify(meta) }),
 	rename: (req: RenameRequest) =>
-		request<RenameResult>('/api/rename', { method: 'POST', body: JSON.stringify(req) })
+		request<RenameResult>('/api/rename', { method: 'POST', body: JSON.stringify(req) }),
+	setFavorite: (hash: string, favorite: boolean) =>
+		request<void>(`/api/favorite/${hash}`, {
+			method: 'POST',
+			body: JSON.stringify({ favorite })
+		}),
+	play: (hash: string) => request<{ play_count: number }>(`/api/play/${hash}`, { method: 'POST' })
 };
 
 /** URL for the raw module bytes (player + WASM metadata extraction). */

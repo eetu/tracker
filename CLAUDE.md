@@ -151,13 +151,17 @@ Cargo workspace = `backend` + `e2e`.
   still fragile on iOS in 2026), so this is a foreground player by design.
 - **Next:** FT2 pixel font/chrome polish; remaining house tooling (git hooks,
   `tracker-design` skill, SECURITY.md).
+- **Favourites + play counts (done):** hash-keyed `stats` table (`favorite`,
+  `play_count`, `last_played`) joined into `/api/tracks`; `POST /api/favorite/:hash`
+  + `POST /api/play/:hash`. UI: per-row star, a header "favourites only" filter, a
+  play-count badge, and a "most played" sort. Counts increment on every play start
+  (server is authoritative; reflected optimistically). Both follow the file across
+  moves (keyed by content hash, like `meta`); global, not per-user.
+- **Virtualized library list (done):** the grouped tree is flattened to a row
+  stream (group-header rows + track rows of open groups) and rendered with
+  **TanStack Virtual** (`@tanstack/svelte-virtual`, `createVirtualizer` +
+  `measureElement`). `<main>` is the scroll container (body no longer scrolls).
 - **Backlog (ideas):**
-  - **Favourites** — star individual tunes + a "Favourites" facet/list. Store
-    server-side keyed by `content_hash` (follows the file across moves, like
-    `meta`); global, not per-user (single shared library, edge auth).
-  - **Play counts** — increment per `content_hash` on play (debounced, e.g. once
-    a track has actually started); surface as a "most played" sort + a count
-    badge. Same hash-keyed table as favourites.
   - **Installable offline PWA** — service worker caching the shell + chiptune
     WASM (+ recently-played module bytes) for offline foreground playback.
   - **Resume last session** — persist current track + queue + position to

@@ -23,6 +23,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/file/{hash}", get(api_file))
         // Enrichment the frontend parsed via libopenmpt WASM.
         .route("/api/meta/{hash}", post(api_meta))
+        // Listener state: toggle favourite, bump play count (both by content hash).
+        .route("/api/favorite/{hash}", post(api_favorite))
+        .route("/api/play/{hash}", post(api_play))
         // Rename / move a module on disk (organise the collection in place).
         .route("/api/rename", post(api_rename))
         // Re-walk the collection (e.g. after moving files around).
@@ -112,6 +115,8 @@ struct Track {
     channels: Option<i64>,
     instruments: Option<i64>,
     samples: Option<i64>,
+    favorite: bool,
+    play_count: i64,
 }
 
 async fn api_tracks(_auth: Auth, State(state): State<AppState>) -> AppResult<Json<Value>> {
@@ -121,9 +126,11 @@ async fn api_tracks(_auth: Auth, State(state): State<AppState>) -> AppResult<Jso
             let mut stmt = c.prepare(
                 "SELECT f.content_hash, f.rel_path, f.grp, f.artist, f.filename, f.ext, f.size,
                         m.title, m.type_long, m.tracker, m.duration, m.channels,
-                        m.instruments, m.samples
+                        m.instruments, m.samples,
+                        COALESCE(s.favorite, 0), COALESCE(s.play_count, 0)
                  FROM files f
                  LEFT JOIN meta m ON m.content_hash = f.content_hash
+                 LEFT JOIN stats s ON s.content_hash = f.content_hash
                  ORDER BY f.grp COLLATE NOCASE, f.artist COLLATE NOCASE, f.filename COLLATE NOCASE",
             )?;
             let rows = stmt.query_map([], |r| {
@@ -142,6 +149,8 @@ async fn api_tracks(_auth: Auth, State(state): State<AppState>) -> AppResult<Jso
                     channels: r.get(11)?,
                     instruments: r.get(12)?,
                     samples: r.get(13)?,
+                    favorite: r.get::<_, i64>(14)? != 0,
+                    play_count: r.get(15)?,
                 })
             })?;
             rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -240,6 +249,57 @@ async fn api_meta(
         })
         .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct FavoriteIn {
+    favorite: bool,
+}
+
+/// Toggle a tune's favourite flag (keyed by content hash, so it survives moves).
+async fn api_favorite(
+    _auth: Auth,
+    State(state): State<AppState>,
+    Path(hash): Path<String>,
+    Json(req): Json<FavoriteIn>,
+) -> AppResult<StatusCode> {
+    state
+        .db
+        .with(move |c| {
+            c.execute(
+                "INSERT INTO stats (content_hash, favorite) VALUES (?1, ?2)
+                 ON CONFLICT(content_hash) DO UPDATE SET favorite = excluded.favorite",
+                rusqlite::params![hash, req.favorite as i64],
+            )
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Increment a tune's play count (called when playback actually starts).
+async fn api_play(
+    _auth: Auth,
+    State(state): State<AppState>,
+    Path(hash): Path<String>,
+) -> AppResult<Json<Value>> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let count: i64 = state
+        .db
+        .with(move |c| {
+            c.execute(
+                "INSERT INTO stats (content_hash, play_count, last_played) VALUES (?1, 1, ?2)
+                 ON CONFLICT(content_hash) DO UPDATE SET
+                   play_count = play_count + 1, last_played = excluded.last_played",
+                rusqlite::params![hash, now],
+            )?;
+            c.query_row(
+                "SELECT play_count FROM stats WHERE content_hash = ?1",
+                [&hash],
+                |r| r.get(0),
+            )
+        })
+        .await?;
+    Ok(Json(json!({ "play_count": count })))
 }
 
 /// Rename or move a module by editing its group / artist / filename — the three
