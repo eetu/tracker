@@ -696,6 +696,14 @@
 				<button class:on={pvTab === 'ball'} onclick={() => (pvTab = 'ball')}>ball</button>
 			</div>
 			<button
+				class="icon-btn gear"
+				onclick={() => (showSettings = true)}
+				title="settings"
+				aria-label="settings"
+			>
+				<Settings size={16} />
+			</button>
+			<button
 				class="pv-close"
 				onclick={() => (showPattern = false)}
 				aria-label="close pattern view"
@@ -1414,7 +1422,7 @@
 		.brand {
 			order: 0;
 		}
-		.gear {
+		.bar .gear {
 			order: 1;
 			margin-left: auto;
 		}
@@ -1487,8 +1495,8 @@
 		.pv-title {
 			display: none;
 		}
-		/* Title gone: tabs stay left, close pinned to the right. */
-		.pv-close {
+		/* Title gone: tabs stay left, the settings + close buttons group right. */
+		.pv-bar .gear {
 			margin-left: auto;
 		}
 	}
