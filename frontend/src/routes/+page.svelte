@@ -280,15 +280,18 @@
 	// the track rows of open groups) and virtualize it with TanStack Virtual, so
 	// thousands of <li> never hit the DOM at once.
 	type LibRow =
-		| { kind: 'header'; name: string; count: number; open: boolean }
-		| { kind: 'track'; track: Track };
+		| { kind: 'header'; name: string; count: number; open: boolean; first: boolean }
+		| { kind: 'track'; track: Track; last: boolean };
 
 	const rows = $derived.by<LibRow[]>(() => {
 		const out: LibRow[] = [];
 		for (const [name, items] of groups) {
 			const open = isOpen(name);
-			out.push({ kind: 'header', name, count: items.length, open });
-			if (open) for (const t of items) out.push({ kind: 'track', track: t });
+			out.push({ kind: 'header', name, count: items.length, open, first: out.length === 0 });
+			if (open)
+				items.forEach((t, i) =>
+					out.push({ kind: 'track', track: t, last: i === items.length - 1 })
+				);
 		}
 		return out;
 	});
@@ -529,9 +532,7 @@
 					starting…
 				{/if}
 			</p>
-			<p class="scan-note">
-				First run hashes every file (≈1 GB over the NAS); later scans are quick.
-			</p>
+			<p class="scan-note">First run hashes every file, later scans are quick(er).</p>
 		</div>
 	{:else if loading}
 		<p class="msg">loading library…</p>
@@ -547,20 +548,26 @@
 				{@const row = rows[v.index]}
 				<div
 					class="vrow"
+					class:spaced={row.kind === 'header' && !row.first}
 					data-index={v.index}
 					use:measure
 					style:transform="translateY({v.start}px)"
 				>
 					{#if row.kind === 'header'}
-						<button class="grp-head" onclick={() => toggleGroup(row.name)} aria-expanded={row.open}>
-							<span class="caret" class:open={row.open}>▸</span>
+						<button
+							class="card head"
+							class:closed={!row.open}
+							onclick={() => toggleGroup(row.name)}
+							aria-expanded={row.open}
+						>
 							<span class="grp-name">{row.name}</span>
 							<span class="grp-count">{row.count}</span>
 						</button>
 					{:else}
 						{@const t = row.track}
 						<div
-							class="li"
+							class="card li"
+							class:last={row.last}
 							class:editing={editingPath === t.path}
 							class:current={playback.current?.path === t.path}
 						>
@@ -878,27 +885,32 @@
 		left: 0;
 		width: 100%;
 	}
-	.grp-head {
+	/* Gap above each group card (except the first) — measured by the virtualizer
+	   since it's padding on the row, not a margin. */
+	.vrow.spaced {
+		padding-top: 8px;
+	}
+	/* Group = a card: the header rounds the top, the last track row rounds the
+	   bottom; side borders + panel bg run down the whole open group. */
+	.card {
+		background: var(--panel);
+		border-left: 1px solid var(--border);
+		border-right: 1px solid var(--border);
+	}
+	.head {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		width: 100%;
-		padding: 8px 12px;
-		background: var(--panel);
-		border: none;
-		border-radius: 0;
+		padding: 9px 12px;
+		border-top: 1px solid var(--border);
 		border-bottom: 1px solid var(--border);
+		border-radius: 6px 6px 0 0;
 		cursor: pointer;
 		text-align: left;
 	}
-	.caret {
-		display: inline-block;
-		color: var(--muted);
-		font-size: 11px;
-		transition: transform 0.12s ease;
-	}
-	.caret.open {
-		transform: rotate(90deg);
+	.head.closed {
+		border-radius: 6px;
 	}
 	.grp-name {
 		font-weight: 600;
@@ -914,6 +926,10 @@
 		gap: 12px;
 		padding: 5px 12px;
 		border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+	}
+	.li.last {
+		border-bottom: 1px solid var(--border);
+		border-radius: 0 0 6px 6px;
 	}
 	.li.editing {
 		background: var(--panel-hi);
