@@ -149,8 +149,14 @@ Cargo workspace = `backend` + `e2e`.
   `AudioContext` resume on return to foreground. iOS suspends Web Audio in the
   background (only `HTMLMediaElement` survives — a render-to-`<audio>` bridge is
   still fragile on iOS in 2026), so this is a foreground player by design.
-- **Next:** FT2 pixel font/chrome polish; remaining house tooling (git hooks,
-  `tracker-design` skill, SECURITY.md).
+- **Tooling (done):** `install-hooks.sh` + `.githooks/pre-commit` (mode 755 —
+  run `./install-hooks.sh` once; routes staged paths to vendored-yarn
+  lint/format vs `cargo clippy --workspace`), `SECURITY.md`, and the
+  `.claude/skills/tracker-design` skill. CI/dockerimage/automerge/cve-scan +
+  dependabot already in `.github/`.
+- **Next:** FT2 pixel font/chrome polish; adopt the full halo
+  `colors_and_type.css` (the `tracker-design` skill currently documents a
+  provisional palette).
 - **Favourites + play counts (done):** hash-keyed `stats` table (`favorite`,
   `play_count`, `last_played`) joined into `/api/tracks`; `POST /api/favorite/:hash`
   + `POST /api/play/:hash`. UI: per-row star, a header "favourites only" filter, a
