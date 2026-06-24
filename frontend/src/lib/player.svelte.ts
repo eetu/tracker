@@ -56,6 +56,10 @@ let analyser: AnalyserNode | null = null;
 let parseId = 0;
 let wakeLock: WakeLockSentinel | null = null;
 let platformWired = false;
+// Play-count gating: only count a tune once it's actually been listened to past
+// a threshold (so fast skips don't inflate counts). Reset per track start.
+let playCounted = false;
+let playCountHash: string | null = null;
 // Plain (non-reactive) registry of in-flight parse resolvers — not UI state.
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 const pendingParse = new Map<number, (m: ParsedMeta | null) => void>();
@@ -119,6 +123,7 @@ function ensurePlayer(): Promise<void> {
 		playback.pattern = d.pattern ?? 0;
 		playback.row = d.row ?? 0;
 		playback.vu = d.vu ?? [];
+		maybeCountPlay(d.pos ?? 0);
 	});
 	player.onMetadata((meta: Meta) => {
 		player.setRepeatCount(playback.repeat ? -1 : 0);
@@ -261,12 +266,28 @@ export async function playTrack(track: Track) {
 	player.setVol(playback.muted ? 0 : 1);
 	player.load(fileUrl(track.hash));
 	syncNowPlaying();
-	// Count this play (each start counts; server is authoritative). Reflect the
-	// new total on the (proxied) track so the list badge updates immediately.
+	// Arm play-count gating for this track; the count fires from onProgress once
+	// it's been listened to past the threshold (not on a fast skip).
+	playCounted = false;
+	playCountHash = track.hash;
+}
+
+/** Count a play once the current track has progressed past a listen threshold
+ *  (~10s, or half its length for short tunes) — so skipping through doesn't
+ *  inflate counts. Position only advances while actually playing, so pausing
+ *  can't trip it either. */
+function maybeCountPlay(pos: number) {
+	if (playCounted || !playCountHash) return;
+	const t = playback.current;
+	if (!t || t.hash !== playCountHash) return;
+	const dur = playback.duration || 0;
+	const threshold = dur > 0 ? Math.min(10, dur * 0.5) : 10;
+	if (pos < threshold) return;
+	playCounted = true;
 	void api
-		.play(track.hash)
+		.play(t.hash)
 		.then((r) => {
-			track.play_count = r.play_count;
+			t.play_count = r.play_count; // reflect new total on the (proxied) track
 		})
 		.catch(() => {
 			/* best effort */
